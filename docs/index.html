@@ -1,0 +1,5050 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="theme-color" content="#0f0f23">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="application-name" content="Heartnotes">
+  <meta name="apple-mobile-web-app-title" content="Heartnotes">
+  <meta name="msapplication-TileColor" content="#0f0f23">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-touch-fullscreen" content="yes">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="apple-mobile-web-app-orientations" content="portrait">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+  <title>Heartnotes</title>
+  <!-- Cache buster: v4 -->
+  <!-- CI/CD Working! -->
+  <script>
+    // Apply saved theme ASAP to avoid flashes and ensure toggle reliability
+    (function applyEarlyTheme() {
+      try {
+        var saved = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var theme = saved || (prefersDark ? 'dark' : 'sky');
+        
+        // Store theme globally for access by other functions
+        window.currentTheme = theme;
+        
+        var root = document.documentElement;
+        if (theme === 'sky') {
+          root.setAttribute('data-theme', 'sky');
+          console.log('Early theme: Set data-theme="sky"');
+        } else {
+          root.removeAttribute('data-theme');
+          console.log('Early theme: Removed data-theme attribute');
+        }
+        
+        var metaTheme = document.querySelector('meta[name="theme-color"]');
+        var tileMeta = document.querySelector('meta[name="msapplication-TileColor"]');
+        var color = theme === 'sky' ? '#e0f2fe' : '#0f0f23';
+        if (metaTheme) metaTheme.setAttribute('content', color);
+        if (tileMeta) tileMeta.setAttribute('content', color);
+        
+        // Theme applied successfully
+        
+        // Don't show sun immediately - wait for page load
+        // Sun will be shown by the page load handler
+        
+        // Immediate background fix for themes
+        if (theme === 'sky') {
+          setTimeout(function() {
+            // Apply sky theme colors
+            document.body.style.backgroundColor = '#e0f2fe';
+            document.body.style.background = 'linear-gradient(180deg, #e0f2fe 0%, #bae6fd 50%, #7dd3fc 100%)';
+            document.body.style.color = '#0c4a6e';
+            document.documentElement.style.backgroundColor = '#e0f2fe';
+          }, 10);
+        } else if (theme === 'dark') {
+          setTimeout(function() {
+            // Apply dark theme colors
+            document.body.style.backgroundColor = '#0f0f23';
+            document.body.style.background = 'linear-gradient(180deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%)';
+            document.body.style.color = '#ffffff';
+            document.documentElement.style.backgroundColor = '#0f0f23';
+          }, 10);
+        }
+      } catch (e) {
+        console.warn('Early theme application failed:', e);
+      }
+    })();
+  </script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <style>
+    /* CSS Variables for theming */
+    :root {
+      /* Dark Theme (default) */
+      --bg-primary: #0f0f23;
+      --bg-secondary: #1a1a2e;
+      --bg-tertiary: #16213e;
+      --text-primary: #ffffff;
+      --text-secondary: #e2e8f0;
+      --text-muted: #cbd5e1;
+      --accent-primary: #a855f7;
+      --accent-secondary: #6366f1;
+      --accent-tertiary: #8b5cf6;
+      --header-bg: rgba(15, 15, 35, 0.9);
+      --border-color: rgba(255, 255, 255, 0.1);
+      --input-bg: rgba(15, 15, 35, 0.8);
+      --card-bg: rgba(15, 15, 35, 0.8);
+      --star-color: #ffffff;
+      --button-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      --button-hover: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+    }
+
+    /* Elegant Modal System */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .modal-overlay.show {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-container {
+      background: var(--bg-secondary);
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      max-width: 90vw;
+      max-height: 80vh;
+      width: 100%;
+      max-width: 400px;
+      overflow: hidden;
+      transform: scale(0.9) translateY(20px);
+      transition: all 0.3s ease;
+      border: 1px solid var(--border-color);
+    }
+
+    .modal-overlay.show .modal-container {
+      transform: scale(1) translateY(0);
+    }
+
+    .modal-header {
+      padding: 24px 24px 16px 24px;
+      text-align: center;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .modal-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    .modal-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0;
+      line-height: 1.3;
+    }
+
+    .modal-content {
+      padding: 20px 24px;
+      color: var(--text-secondary);
+      font-size: 16px;
+      line-height: 1.5;
+      max-height: 50vh;
+      overflow-y: auto;
+    }
+
+    .modal-content p {
+      margin: 0 0 12px 0;
+    }
+
+    .modal-content p:last-child {
+      margin-bottom: 0;
+    }
+
+    .modal-actions {
+      padding: 16px 24px 24px 24px;
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .modal-button {
+      flex: 1;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      min-height: 48px;
+    }
+
+    .modal-button-primary {
+      background: var(--button-gradient);
+      color: white;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    .modal-button-primary:hover {
+      background: var(--button-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+    }
+
+    .modal-button-secondary {
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color);
+    }
+
+    .modal-button-secondary:hover {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 24px;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .modal-close:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    /* Sky Theme Modal */
+    [data-theme="sky"] .modal-container {
+      background: var(--bg-secondary);
+      border: 1px solid rgba(2, 132, 199, 0.2);
+    }
+
+    [data-theme="sky"] .modal-header {
+      border-bottom: 1px solid rgba(2, 132, 199, 0.2);
+    }
+
+    [data-theme="sky"] .modal-close {
+      color: var(--text-muted);
+    }
+
+    [data-theme="sky"] .modal-close:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    /* Mobile optimizations */
+    @media (max-width: 480px) {
+      .modal-container {
+        margin: 10px;
+        max-width: calc(100vw - 20px);
+        border-radius: 16px;
+      }
+
+      .modal-header {
+        padding: 20px 20px 12px 20px;
+      }
+
+      .modal-icon {
+        font-size: 40px;
+        margin-bottom: 8px;
+      }
+
+      .modal-title {
+        font-size: 18px;
+      }
+
+      .modal-content {
+        padding: 16px 20px;
+        font-size: 15px;
+      }
+
+      .modal-actions {
+        padding: 12px 20px 20px 20px;
+        flex-direction: column;
+      }
+
+      .modal-button {
+        font-size: 15px;
+        padding: 12px 16px;
+      }
+    }
+
+    /* Sky Theme */
+    [data-theme="sky"] {
+      --bg-primary: #e0f2fe;
+      --bg-secondary: #bae6fd;
+      --bg-tertiary: #7dd3fc;
+      --text-primary: #0c4a6e;
+      --text-secondary: #0369a1;
+      --text-muted: #0ea5e9;
+      --accent-primary: #0284c7;
+      --accent-secondary: #0369a1;
+      --accent-tertiary: #0c4a6e;
+      --header-bg: rgba(224, 242, 254, 0.9);
+      --border-color: rgba(0, 0, 0, 0.05);
+      --input-bg: rgba(255, 255, 255, 0.8);
+      --card-bg: rgba(255, 255, 255, 0.9);
+      --star-color: #fbbf24;
+      --button-gradient: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      --button-hover: linear-gradient(135deg, #0369a1 0%, #0c4a6e 100%);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      /* Solid fallback prevents white flash */
+      background-color: var(--bg-primary);
+      background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, var(--bg-tertiary) 100%);
+      color: var(--text-primary);
+      text-align: center;
+      min-height: 100vh;
+      min-height: 100dvh; /* Dynamic viewport height for mobile browsers */
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      /* PWA specific styles */
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      overscroll-behavior: none;
+      transition: all 0.3s ease;
+      /* Improve text rendering */
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      font-feature-settings: "kern" 1;
+    }
+    
+    /* Animated Stars Background */
+    .stars {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+    
+    .star {
+      position: absolute;
+      background: var(--star-color);
+      border-radius: 50%;
+      animation: twinkle 3s infinite;
+    }
+    
+    .star:nth-child(1) { width: 2px; height: 2px; top: 10%; left: 20%; animation-delay: 0s; }
+    .star:nth-child(2) { width: 1px; height: 1px; top: 15%; left: 80%; animation-delay: 0.5s; }
+    .star:nth-child(3) { width: 3px; height: 3px; top: 25%; left: 40%; animation-delay: 1s; }
+    .star:nth-child(4) { width: 1px; height: 1px; top: 35%; left: 70%; animation-delay: 1.5s; }
+    .star:nth-child(5) { width: 2px; height: 2px; top: 45%; left: 10%; animation-delay: 2s; }
+    .star:nth-child(6) { width: 1px; height: 1px; top: 55%; left: 90%; animation-delay: 2.5s; }
+    .star:nth-child(7) { width: 3px; height: 3px; top: 65%; left: 30%; animation-delay: 0.3s; }
+    .star:nth-child(8) { width: 2px; height: 2px; top: 75%; left: 60%; animation-delay: 0.8s; }
+    .star:nth-child(9) { width: 1px; height: 1px; top: 85%; left: 15%; animation-delay: 1.3s; }
+    .star:nth-child(10) { width: 2px; height: 2px; top: 95%; left: 85%; animation-delay: 1.8s; }
+    .star:nth-child(11) { width: 1px; height: 1px; top: 5%; left: 50%; animation-delay: 0.7s; }
+    .star:nth-child(12) { width: 3px; height: 3px; top: 20%; left: 5%; animation-delay: 1.2s; }
+    .star:nth-child(13) { width: 2px; height: 2px; top: 30%; left: 95%; animation-delay: 1.7s; }
+    .star:nth-child(14) { width: 1px; height: 1px; top: 50%; left: 25%; animation-delay: 0.2s; }
+    .star:nth-child(15) { width: 2px; height: 2px; top: 60%; left: 75%; animation-delay: 0.9s; }
+    .star:nth-child(16) { width: 3px; height: 3px; top: 70%; left: 45%; animation-delay: 1.4s; }
+    .star:nth-child(17) { width: 1px; height: 1px; top: 80%; left: 35%; animation-delay: 1.9s; }
+    .star:nth-child(18) { width: 2px; height: 2px; top: 90%; left: 65%; animation-delay: 0.4s; }
+    .star:nth-child(19) { width: 1px; height: 1px; top: 12%; left: 55%; animation-delay: 0.6s; }
+    .star:nth-child(20) { width: 3px; height: 3px; top: 22%; left: 85%; animation-delay: 1.1s; }
+    
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.3; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.2); }
+    }
+    
+    /* Moving stars */
+    .moving-star {
+      position: absolute;
+      background: var(--star-color);
+      border-radius: 50%;
+      animation: moveStar 8s linear infinite;
+    }
+    
+    .moving-star:nth-child(21) { width: 1px; height: 1px; top: 0%; left: 0%; animation-duration: 12s; }
+    .moving-star:nth-child(22) { width: 2px; height: 2px; top: 20%; left: 100%; animation-duration: 15s; animation-delay: 2s; }
+    .moving-star:nth-child(23) { width: 1px; height: 1px; top: 40%; left: 0%; animation-duration: 10s; animation-delay: 4s; }
+    .moving-star:nth-child(24) { width: 3px; height: 3px; top: 60%; left: 100%; animation-duration: 18s; animation-delay: 1s; }
+    .moving-star:nth-child(25) { width: 2px; height: 2px; top: 80%; left: 0%; animation-duration: 14s; animation-delay: 3s; }
+    
+    @keyframes moveStar {
+      0% { transform: translateX(-100px) translateY(0px); opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { transform: translateX(calc(100vw + 100px)) translateY(-50px); opacity: 0; }
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 20px;
+      background: var(--header-bg);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border-color);
+      z-index: 10;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+    }
+    
+    .content {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 80px 0 20px 0;
+      position: relative;
+      z-index: 1;
+      /* PWA specific styles */
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .prompt, h2, p {
+      margin: 10px 0;
+    }
+    h2 {
+      font-size: 1.6rem;
+      font-weight: 400;
+      color: var(--accent-primary);
+      letter-spacing: 0.5px;
+      text-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
+    }
+    .app-title { font-size: 1.4rem; }
+    
+    /* Elegant date display styling */
+    #entry-date {
+      font-size: 1rem !important;
+      font-weight: 300 !important;
+      color: var(--text-muted) !important;
+      margin-bottom: 20px !important;
+      letter-spacing: 0.3px !important;
+      text-shadow: none !important;
+      opacity: 0.8;
+      font-style: italic;
+    }
+    .prompt {
+      font-size: 1.1rem;
+      font-style: italic;
+      color: var(--text-secondary);
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      font-feature-settings: "kern" 1;
+      letter-spacing: 0.01em;
+      /* Prevent text clipping */
+      overflow: visible;
+      white-space: normal;
+      word-break: normal;
+      max-width: 100%;
+      box-sizing: border-box;
+      /* Ensure proper text rendering */
+      -webkit-text-stroke: 0.01em transparent;
+      text-shadow: 0 0 0.01em transparent;
+      /* Prevent word hyphenation */
+      hyphens: none;
+      -webkit-hyphens: none;
+      -moz-hyphens: none;
+      -ms-hyphens: none;
+    }
+    .quote-author {
+      display: block;
+      margin-top: 6px;
+      color: var(--text-muted);
+      font-style: normal;
+      font-weight: 400;
+    }
+    p {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+    }
+    /* Softer dark color for journal text in LIGHT theme only */
+    [data-theme="sky"] .history-item, [data-theme="sky"] .history-item p, [data-theme="sky"] #reflection {
+      color: #374151 !important; /* slate-700 */
+    }
+    .button {
+      background: var(--button-gradient);
+      color: #ffffff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 25px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+      font-weight: 400;
+      letter-spacing: 1px;
+      box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3), 0 0 20px rgba(139, 92, 246, 0.2);
+      transition: all 0.3s ease-in-out;
+    }
+    .button:hover {
+      background: var(--button-hover);
+      color: #ffffff;
+      box-shadow: 0 6px 14px rgba(99, 102, 241, 0.4), 0 0 30px rgba(139, 92, 246, 0.3);
+      transform: translateY(-2px);
+    }
+    .button:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    .loading {
+      position: relative;
+      pointer-events: none;
+    }
+    .loading::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 20px;
+      height: 20px;
+      margin: -10px 0 0 -10px;
+      border: 2px solid transparent;
+      border-top: 2px solid #ffffff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .floating-plus {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 56px;
+      height: 56px;
+      background: var(--button-gradient);
+      color: #ffffff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 500;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3), 0 0 20px rgba(139, 92, 246, 0.2);
+      transition: all 0.3s ease-in-out;
+      z-index: 1000;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    .floating-plus:hover {
+      background: var(--button-hover);
+      color: #ffffff;
+      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4), 0 0 25px rgba(139, 92, 246, 0.3);
+      transform: translateY(-2px) scale(1.03);
+    }
+    .floating-plus:active {
+      transform: translateY(-1px) scale(1.01);
+    }
+    .hidden { 
+      display: none; 
+    }
+    
+    /* Elegant screen transitions */
+    .screen-transition {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .fade-out {
+      opacity: 0;
+      transform: translateY(-10px);
+      transition: all 0.2s ease-out;
+    }
+    
+    .fade-in {
+      opacity: 1;
+      transform: translateY(0);
+      transition: all 0.3s ease-out;
+    }
+    
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--bg-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s ease, visibility 0.2s ease;
+      pointer-events: none;
+      width: 100vw;
+      height: 100vh;
+      background-color: var(--bg-primary) !important;
+    }
+    
+    .loading-overlay.active {
+      opacity: 1 !important;
+      visibility: visible !important;
+      pointer-events: all !important;
+      display: flex !important;
+    }
+    
+    /* Prevent white flash during transitions */
+    body.transitioning {
+      overflow: hidden;
+    }
+    
+    .screen-container {
+      position: relative;
+      min-height: 100vh;
+    }
+    
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border-color);
+      border-top: 3px solid var(--accent-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    .loading-text {
+      margin-top: 20px;
+      color: var(--text-secondary);
+      font-size: 1rem;
+      font-weight: 300;
+    }
+    input[type="text"], input[type="email"], input[type="password"], textarea {
+      width: 95%;
+      padding: 12px;
+      font-size: 1rem;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      margin: 10px 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+      background: var(--input-bg);
+      color: var(--text-primary);
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    textarea { min-height: 130px; resize: vertical; line-height: 1.8; }
+    #history-list { 
+      width: 100%; 
+      padding: 0;
+      margin: 0;
+      box-sizing: border-box;
+    }
+    .history-item {
+      text-align: left;
+      padding: 15px;
+      background: var(--card-bg);
+      margin: 8px 12px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      cursor: pointer;
+      border: none;
+      line-height: 1.8;
+      width: calc(100% - 24px);
+      max-width: calc(100% - 24px);
+      box-sizing: border-box;
+    }
+    .history-item img {
+      max-width: 90%;
+      max-height: 400px;
+      border-radius: 12px;
+      margin: 10px auto;
+      display: block;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      object-fit: cover;
+    }
+    .history-item button {
+      margin: 4px;
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      border-radius: 20px;
+      background: var(--button-gradient);
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
+      transition: all 0.3s ease-in-out;
+    }
+    .history-item button:hover {
+      background: var(--button-hover);
+      color: #ffffff;
+      box-shadow: 0 4px 10px rgba(99, 102, 241, 0.4);
+      transform: translateY(-1px);
+    }
+    img.preview {
+      max-width: 90%;
+      max-height: 400px;
+      margin: 10px auto;
+      display: block;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      object-fit: cover;
+    }
+    
+    .history-item img {
+      max-width: 90%;
+      max-height: 400px;
+      border-radius: 12px;
+      margin: 10px auto;
+      display: block;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      object-fit: cover;
+      background: transparent !important;
+    }
+    
+    /* Ensure flex images have transparent backgrounds and nice styling */
+    .history-item div[style*="display: flex"] img {
+      background: transparent !important;
+      border: 2px solid var(--border-color);
+      transition: all 0.3s ease;
+    }
+    
+    .history-item div[style*="display: flex"] img:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    }
+    /* Dark theme readability tweaks: brighter titles, softer date/time */
+    :root:not([data-theme="sky"]) .history-item h3 {
+      color: #e5e7eb; /* zinc-200 */
+    }
+    :root:not([data-theme="sky"]) .history-item small,
+    :root:not([data-theme="sky"]) #entry-date {
+      color: #cbd5e1 !important; /* slate-300 */
+      text-shadow: none;
+    }
+    #current-date {
+      font-size: 1.1rem;
+      font-weight: 400;
+      color: var(--accent-primary);
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+    }
+    #current-time {
+      font-size: 0.9rem;
+      font-weight: 300;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+    }
+    .button-group {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin: 10px 0;
+      flex-wrap: wrap;
+    }
+
+    /* Kebab (three-dot) menu for history items */
+    .kebab-container { position: relative; display: inline-flex; align-items: center; gap: 6px; }
+    .kebab-button {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+    }
+    .kebab-button:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+    .kebab-dropdown {
+      position: static; /* inline with the dot button */
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      border-radius: 0;
+      padding: 0;
+      display: none; /* toggled to flex */
+      z-index: 1;
+      min-width: 0;
+      flex-direction: row;
+      gap: 6px;
+      align-items: center;
+      margin-left: 6px;
+    }
+    .kebab-dropdown .kebab-item {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      width: auto;
+      text-align: center;
+      padding: 6px 12px;
+      border-radius: 16px; /* smaller pill */
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease, transform 0.1s ease;
+      margin: 0;
+      font-size: 0.85rem;
+      display: inline-flex;
+      white-space: nowrap;
+    }
+    .kebab-dropdown .kebab-item:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+
+
+
+    @media (max-width: 480px) {
+      h2 { font-size: 1.4rem; }
+      .app-title { font-size: 1.25rem; }
+      .prompt { 
+        font-size: 1rem; 
+        /* Mobile-specific text rendering fixes */
+        -webkit-text-stroke: 0.02em transparent;
+        text-shadow: 0 0 0.02em transparent;
+        letter-spacing: 0.03em;
+        word-spacing: 0.08em;
+        line-height: 1.6;
+        font-weight: 400;
+        -webkit-font-smoothing: subpixel-antialiased;
+        -moz-osx-font-smoothing: auto;
+        /* Prevent word hyphenation on mobile */
+        hyphens: none;
+        -webkit-hyphens: none;
+        -moz-hyphens: none;
+        -ms-hyphens: none;
+      }
+      p { font-size: 0.9rem; }
+      .button { font-size: 0.85rem; padding: 8px 16px; }
+      input[type="text"], input[type="email"], input[type="password"], textarea { width: 96%; padding: 10px; }
+      .history-item { 
+        padding: 12px; 
+        margin: 8px 12px;
+        width: calc(100% - 24px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        border: none;
+      }
+      .floating-plus { width: 52px; height: 52px; font-size: 26px; }
+      .options-menu { min-width: 170px; padding: 10px; }
+      .options-menu button { padding: 10px 14px; font-size: 0.95rem; min-height: 38px; }
+      
+      /* Mobile date styling - even more elegant */
+      #entry-date { 
+        font-size: 0.9rem !important; 
+        margin-bottom: 15px !important;
+        opacity: 0.7 !important;
+      }
+      
+      /* Mobile header adjustments */
+      .header { padding: 10px 16px; }
+      
+      /* Mobile content adjustments - wider journal box */
+      .content { padding: 80px 0 20px 0; }
+      
+      /* Mobile toolbar */
+      .photo-toolbar {
+        flex-wrap: wrap;
+        gap: 6px !important;
+        padding: 10px !important;
+      }
+      
+      .toolbar-button {
+        padding: 8px 12px !important;
+        font-size: 0.8rem !important;
+        border-radius: 25px !important;
+        min-width: 60px !important;
+      }
+    }
+    
+    /* Toolbar button hover effects */
+    .toolbar-button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 15px rgba(99, 102, 241, 0.4), 0 0 25px rgba(139, 92, 246, 0.3);
+    }
+    
+    .toolbar-button:active {
+      transform: scale(0.95);
+    }
+    
+    .toolbar-button:disabled {
+      background: var(--bg-secondary) !important;
+      color: var(--text-muted) !important;
+      cursor: not-allowed !important;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+    }
+    .options-menu {
+      position: fixed;
+      bottom: 80px;
+      right: 20px;
+      background: transparent;
+      padding: 12px;
+      display: none;
+      z-index: 999;
+      min-width: 180px;
+    }
+    .options-menu button {
+      display: block;
+      width: 100%;
+      margin: 6px 0;
+      background: var(--button-gradient);
+      color: #ffffff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.3s ease-in-out;
+      font-size: 0.9rem;
+      font-weight: 500;
+      text-align: center;
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    }
+    .options-menu button:hover {
+      background: var(--button-hover);
+      color: #ffffff;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    }
+    .options-menu button:active {
+      transform: translateY(0);
+    }
+
+    /* Google Sign In Button Styling */
+    .google-signin-btn {
+      background: #4285f4 !important;
+      border: 1px solid #4285f4 !important;
+      color: white !important;
+      font-weight: 500;
+      transition: all 0.3s ease-in-out;
+    }
+
+    .google-signin-btn:hover {
+      background: #3367d6 !important;
+      border-color: #3367d6 !important;
+      color: white !important;
+      box-shadow: 0 4px 12px rgba(66, 133, 244, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .google-signin-btn:active {
+      background: #2c5aa0 !important;
+      transform: translateY(0);
+    }
+
+    .google-signin-btn svg {
+      flex-shrink: 0;
+    }
+
+    /* Apple Sign In Button Styling */
+    .apple-signin-btn {
+      background: #000000 !important;
+      border: 1px solid #000000 !important;
+      color: white !important;
+      font-weight: 500;
+      transition: all 0.3s ease-in-out;
+    }
+
+    .apple-signin-btn:hover {
+      background: #333333 !important;
+      border-color: #333333 !important;
+      color: white !important;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .apple-signin-btn:active {
+      background: #1a1a1a !important;
+      transform: translateY(0);
+    }
+
+    .apple-signin-btn svg {
+      flex-shrink: 0;
+    }
+
+    /* Sun for sky theme */
+    .sun {
+      position: fixed;
+      top: 25%;
+      right: 8%;
+      width: 40px;
+      height: 40px;
+      background: radial-gradient(circle, #fbbf24 0%, #f59e0b 100%);
+      border-radius: 50%;
+      box-shadow: 0 0 25px rgba(251, 191, 36, 0.5);
+      z-index: 1;
+      animation: sunGlow 4s ease-in-out infinite alternate;
+      opacity: 1;
+      transition: opacity 0.3s ease;
+    }
+
+    @keyframes sunGlow {
+      0% { box-shadow: 0 0 25px rgba(251, 191, 36, 0.5); }
+      100% { box-shadow: 0 0 35px rgba(251, 191, 36, 0.7); }
+    }
+
+    /* Specific fix for quote text rendering */
+    #quote {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", Arial, sans-serif !important;
+      text-rendering: optimizeLegibility !important;
+      -webkit-font-smoothing: antialiased !important;
+      -moz-osx-font-smoothing: grayscale !important;
+      font-feature-settings: "kern" 1, "liga" 1 !important;
+      letter-spacing: 0.02em !important;
+      line-height: 1.5 !important;
+      word-spacing: 0.05em !important;
+      /* Prevent any text clipping */
+      overflow: visible !important;
+      white-space: normal !important;
+      word-break: normal !important;
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+      /* Force proper text rendering */
+      -webkit-text-stroke: 0.01em transparent !important;
+      text-shadow: 0 0 0.01em transparent !important;
+      /* Ensure no transform affects text */
+      transform: none !important;
+      /* Prevent any container clipping */
+      contain: none !important;
+      /* Prevent word hyphenation */
+      hyphens: none !important;
+      -webkit-hyphens: none !important;
+      -moz-hyphens: none !important;
+      -ms-hyphens: none !important;
+    }
+
+    /* Mobile-specific quote fixes */
+    @media (max-width: 480px) {
+      #quote {
+        font-size: 1.1rem !important;
+        letter-spacing: 0.04em !important;
+        word-spacing: 0.1em !important;
+        line-height: 1.7 !important;
+        font-weight: 400 !important;
+        -webkit-text-stroke: 0.03em transparent !important;
+        text-shadow: 0 0 0.03em transparent !important;
+        -webkit-font-smoothing: subpixel-antialiased !important;
+        -moz-osx-font-smoothing: auto !important;
+        /* Mobile-specific font stack */
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Segoe UI", "Roboto", Arial, sans-serif !important;
+        /* Ensure proper mobile rendering */
+        -webkit-text-size-adjust: 100% !important;
+        text-size-adjust: 100% !important;
+        /* Prevent mobile zoom issues */
+        -webkit-touch-callout: none !important;
+        -webkit-user-select: none !important;
+        user-select: none !important;
+        /* Prevent word hyphenation on mobile */
+        hyphens: none !important;
+        -webkit-hyphens: none !important;
+        -moz-hyphens: none !important;
+        -ms-hyphens: none !important;
+      }
+    }
+
+
+
+
+
+
+    /* Image Modal Styles */
+    .image-modal {
+      display: none;
+      position: fixed;
+      z-index: 10000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.9);
+      backdrop-filter: blur(10px);
+      animation: fadeIn 0.3s ease;
+    }
+
+    .image-modal.show {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-content {
+      max-width: 95%;
+      max-height: 95%;
+      object-fit: contain;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      cursor: pointer;
+      transition: transform 0.3s ease;
+    }
+
+    .modal-content:hover {
+      transform: scale(1.02);
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      color: #ffffff;
+      font-size: 40px;
+      font-weight: bold;
+      cursor: pointer;
+      z-index: 10001;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    }
+
+    .modal-close:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: scale(1.1);
+    }
+
+    .modal-info {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #ffffff;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px 20px;
+      border-radius: 25px;
+      font-size: 14px;
+      backdrop-filter: blur(10px);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* Make images clickable */
+    img.preview, .history-item img {
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    img.preview:hover, .history-item img:hover {
+      transform: scale(1.02);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    }
+
+  </style>
+  </head>
+  <body>
+    <!-- Elegant Modal System -->
+    <div id="modal-overlay" class="modal-overlay">
+      <div class="modal-container">
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+        <div class="modal-header">
+          <span class="modal-icon" id="modal-icon">📱</span>
+          <h3 class="modal-title" id="modal-title">Message</h3>
+        </div>
+        <div class="modal-content" id="modal-content">
+          <p>Content goes here</p>
+        </div>
+        <div class="modal-actions" id="modal-actions">
+          <button class="modal-button modal-button-primary" id="modal-primary-btn" onclick="closeModal()">OK</button>
+        </div>
+      </div>
+    </div>
+  <!-- Animated Stars Background -->
+  <div class="stars">
+    <div class="star"></div>
+    <div class="star"></div>
+    <div class="star"></div>
+    <div class="star"></div>
+    <div class="star"></div>
+    <div class="star"></div>
+    <div class="star"></div>
+    <div class="star"></div>
+    <div class="star"></div>
+    <div class="star"></div>
+    <div class="star"></div>
+    <div class="star"></div>
+    <div class="star"></div>
+    <div class="star"></div>
+    <div class="star"></div>
+    <div class="star"></div>
+    <div class="star"></div>
+    <div class="star"></div>
+    <div class="star"></div>
+    <div class="star"></div>
+    <div class="moving-star"></div>
+    <div class="moving-star"></div>
+    <div class="moving-star"></div>
+    <div class="moving-star"></div>
+    <div class="moving-star"></div>
+  </div>
+  
+
+  
+  <!-- Sun for Sky Theme -->
+  <div class="sun" style="display: none; opacity: 0; transition: opacity 0.5s ease; visibility: hidden;"></div>
+  
+  <!-- Elegant Loading Overlay -->
+  <div id="loading-overlay" class="loading-overlay" style="opacity: 0; visibility: hidden;">
+    <div style="text-align: center;">
+      <div class="loading-spinner"></div>
+      <div class="loading-text" id="loading-text">Signing in...</div>
+    </div>
+  </div>
+  
+  <div class="header">
+    <div>
+      <button id="theme-toggle" class="button" onclick="toggleTheme()" style="margin-right: 10px; padding: 8px 12px; font-size: 0.8rem;">☀️</button>
+      <!-- Authentication removed - automatic sync without signup -->
+    </div>
+    <div>
+      <button id="sign-out-btn" class="button" onclick="handleSignOut()" style="background: var(--accent-secondary); padding: 8px 12px; font-size: 0.8rem; display: none;">Sign Out</button>
+    </div>
+  </div>
+  
+
+  <!-- Authentication Screen -->
+  <div id="auth-screen" class="content screen-transition">
+    <h2 class="app-title">Writing Experiences</h2>
+    
+    <!-- Firebase Auth Options -->
+    <div style="text-align: center; margin-top: 30px;">
+      <!-- Google Sign In Button -->
+      <button class="button firebase-google-btn" onclick="signInWithGoogle()" style="background: #4285f4; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.9rem; padding: 10px 20px; margin: 0 auto; border-radius: 20px; font-weight: 500; box-shadow: 0 2px 8px rgba(66, 133, 244, 0.3); transition: all 0.2s ease;">
+        <svg width="18" height="18" viewBox="0 0 24 24">
+          <path fill="white" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="white" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="white" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+          <path fill="white" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        Continue with Google
+      </button>
+      
+      <p style="font-size: 0.9rem; color: var(--text-muted); margin: 20px 0;">One-click sign-in with your Google account</p>
+      
+      
+    </div>
+    
+    <div id="auth-message" class="prompt" style="display: none; margin-top: 15px;"></div>
+  </div>
+
+  <!-- Main Screen -->
+  <div id="main-screen" class="content hidden screen-transition">
+    <button id="back-to-inspire-btn" class="button" onclick="goBackToInspire()" style="display: none; margin-bottom: 20px;">← Back to Inspire Me</button>
+    <div id="welcome-message" class="prompt" style="display: none; margin-bottom: 20px;"></div>
+    <div id="quota-status" class="prompt" style="display: none; margin-bottom: 20px; font-size: 0.9rem; color: var(--text-muted);"></div>
+    <div id="quote" class="prompt" style="word-wrap: break-word; overflow-wrap: break-word; hyphens: none; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; font-feature-settings: 'kern' 1; letter-spacing: 0.02em; line-height: 1.4;">Loading inspiration...</div>
+    <button class="button" onclick="newQuote()">Inspire Me</button>
+          <h2 class="app-title">Writing Experiences</h2>
+      <p>Tap the plus button to start your journey</p>
+  </div>
+  <!-- Authentication screens removed - no signup/login required -->
+  <!-- Entry Screen -->
+  <div id="entry-screen" class="content hidden">
+    <h2 id="entry-date"></h2>
+    <div id="reflection-question" class="prompt">What moment today felt like a gift from the universe?</div>
+    <input type="text" id="title" placeholder="Title">
+    <textarea id="reflection" placeholder="Speak or type your reflections..."></textarea>
+    <div>
+      <div class="photo-toolbar" style="display: flex; gap: 8px; margin: 15px 0; padding: 12px; background: transparent; justify-content: center; align-items: center;">
+        <button type="button" class="toolbar-button" onclick="newQuestion()" style="display: flex; align-items: center; justify-content: center; padding: 8px 16px; border-radius: 25px; background: var(--button-gradient); color: #ffffff; border: none; cursor: pointer; transition: all 0.2s ease; font-size: 0.9rem; font-weight: 400; white-space: nowrap; box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3), 0 0 20px rgba(139, 92, 246, 0.2);">
+          New
+        </button>
+        <label for="image-input" class="toolbar-button" style="display: flex; align-items: center; justify-content: center; padding: 8px 16px; border-radius: 25px; background: var(--button-gradient); color: #ffffff; border: none; cursor: pointer; transition: all 0.2s ease; font-size: 0.9rem; font-weight: 400; white-space: nowrap; box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3), 0 0 20px rgba(139, 92, 246, 0.2);">
+          Photos
+      </label>
+        <label for="camera-input" class="toolbar-button" style="display: flex; align-items: center; justify-content: center; padding: 8px 16px; border-radius: 25px; background: var(--button-gradient); color: #ffffff; border: none; cursor: pointer; transition: all 0.2s ease; font-size: 0.9rem; font-weight: 400; white-space: nowrap; box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3), 0 0 20px rgba(139, 92, 246, 0.2);">
+          Camera
+        </label>
+        <button type="button" class="toolbar-button" onclick="startVoiceRecognition()" style="display: flex; align-items: center; justify-content: center; padding: 8px 16px; border-radius: 25px; background: var(--button-gradient); color: #ffffff; border: none; cursor: pointer; transition: all 0.2s ease; font-size: 0.9rem; font-weight: 400; white-space: nowrap; box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3), 0 0 20px rgba(139, 92, 246, 0.2);">
+          Voice
+        </button>
+        <button type="button" class="toolbar-button" id="save" onclick="saveReflection()" disabled style="display: flex; align-items: center; justify-content: center; padding: 8px 16px; border-radius: 25px; background: var(--button-gradient); color: #ffffff; border: none; cursor: not-allowed; transition: all 0.2s ease; font-size: 0.9rem; font-weight: 400; white-space: nowrap; box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3), 0 0 20px rgba(139, 92, 246, 0.2);">
+          Save
+        </button>
+        <button type="button" class="toolbar-button" onclick="goBack()" style="display: flex; align-items: center; justify-content: center; padding: 8px 16px; border-radius: 25px; background: var(--button-gradient); color: #ffffff; border: none; cursor: pointer; transition: all 0.2s ease; font-size: 0.9rem; font-weight: 400; white-space: nowrap; box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3), 0 0 20px rgba(139, 92, 246, 0.2);">
+          Back
+        </button>
+      </div>
+      <input type="file" 
+             accept="image/*,image/jpeg,image/jpg,image/png,image/gif,image/webp,image/heic,image/heif" 
+             id="image-input" 
+             multiple
+             style="display: none;"
+             webkitdirectory="false"
+             directory="false"
+             x-moz-errormessage=""
+             data-capture="none"
+             data-testid="photos-input">
+      <input type="file" 
+             accept="image/*" 
+             id="camera-input" 
+             capture="environment" 
+             multiple="false"
+             style="display: none;"
+             webkitdirectory="false"
+             directory="false">
+      <div id="image-preview-container" style="display: none;">
+        <div id="image-loading" style="display: none; text-align: center; padding: 20px; color: var(--text-muted);">
+          📸 Loading image...
+        </div>
+        <div id="image-thumbs" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; justify-items: center; align-items: center;"></div>
+        <button type="button" class="button" onclick="removeAllImages()" style="margin-top: 10px;">Remove All Photos</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Image Modal -->
+  <div id="image-modal" class="image-modal">
+    <span class="modal-close" onclick="closeImageModal()">&times;</span>
+    <img id="modal-image" class="modal-content" onclick="closeImageModal()">
+    <div class="modal-info" id="modal-info">Click anywhere to close</div>
+  </div>
+
+  <!-- History Screen -->
+  <div id="history-screen" class="content hidden">
+    <h2>Past Reflections</h2>
+    <div id="history-list"></div>
+    <div class="button-group">
+      <button class="button" onclick="goBack()">Back</button>
+    </div>
+  </div>
+  <div class="floating-plus" onclick="toggleOptionsMenu()">+</div>
+  <div id="options-menu" class="options-menu">
+          <button id="start-journaling-btn" onclick="showEntryScreen()" style="display: none;">Start Journaling</button>
+          <button id="past-reflections-btn" onclick="showHistory()" style="display: none;">Past Reflections</button>
+          <button id="home-btn" onclick="goToHome()" style="display: none;">Home</button>
+  </div>
+  <script>
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyCBKWKwZq8XqECABmuPn5vZ3D8O3hz8Ts0",
+      authDomain: "spiritual-journey-e3330.firebaseapp.com",
+      projectId: "spiritual-journey-e3330",
+      storageBucket: "spiritual-journey-e3330.firebasestorage.app",
+      messagingSenderId: "443749946566",
+      appId: "1:443749946566:web:b19c90120ed09bb128f3c7",
+      measurementId: "G-QFCNBZL9G9"
+    };
+
+    // Initialize Firebase
+    let firebase;
+    let auth;
+    let db;
+    
+    function initializeFirebase() {
+      try {
+        // Check if Firebase is available
+        if (typeof window.firebase === 'undefined') {
+          console.error('Firebase library not loaded yet');
+          return false;
+        }
+        
+        // Initialize Firebase
+        firebase = window.firebase;
+        
+        // Check if already initialized
+        if (firebase.apps.length === 0) {
+        firebase.initializeApp(firebaseConfig);
+        }
+        
+        // Initialize Firebase Auth and Firestore
+        auth = firebase.auth();
+        db = firebase.firestore();
+        
+        console.log('Firebase initialized successfully');
+        return true;
+      } catch (error) {
+        console.error('Firebase initialization error:', error);
+        return false;
+      }
+    }
+    
+
+    let recognition;
+    let reflections = [];
+    let currentImages = [];
+    let editingIndex = null;
+    let user = null;
+    // Theme will be managed by window.currentTheme set in early theme application
+
+    // Image Modal Functions
+    function openImageModal(imageSrc, imageAlt = '') {
+      const modal = document.getElementById('image-modal');
+      const modalImage = document.getElementById('modal-image');
+      const modalInfo = document.getElementById('modal-info');
+      
+      modalImage.src = imageSrc;
+      modalImage.alt = imageAlt;
+      modalInfo.textContent = 'Click anywhere to close';
+      
+      modal.classList.add('show');
+      document.body.style.overflow = 'hidden'; // Prevent background scrolling
+      
+      // Add keyboard support
+      document.addEventListener('keydown', handleModalKeydown);
+    }
+
+    function closeImageModal() {
+      const modal = document.getElementById('image-modal');
+      modal.classList.remove('show');
+      document.body.style.overflow = 'auto'; // Restore scrolling
+      
+      // Remove keyboard support
+      document.removeEventListener('keydown', handleModalKeydown);
+    }
+
+    function handleModalKeydown(event) {
+      if (event.key === 'Escape') {
+        closeImageModal();
+      }
+    }
+
+    // Add click handlers to existing images
+    function addImageClickHandlers() {
+      // Add handlers to preview images
+      document.addEventListener('click', function(event) {
+        if (event.target.classList.contains('preview') || 
+            (event.target.tagName === 'IMG' && event.target.closest('.history-item'))) {
+          event.preventDefault();
+          openImageModal(event.target.src, event.target.alt);
+        }
+      });
+    }
+
+    // Helper function to safely access currentUser properties
+    function getCurrentUserId() {
+      return currentUser && currentUser.id ? currentUser.id : null;
+    }
+
+    function isFirebaseUser() {
+      return currentUser && currentUser.isFirebase === true;
+    }
+
+    // Elegant Modal System
+    function showModal(options = {}) {
+      const {
+        icon = '📱',
+        title = 'Message',
+        content = 'Content goes here',
+        primaryText = 'OK',
+        secondaryText = null,
+        onPrimary = null,
+        onSecondary = null,
+        onClose = null
+      } = options;
+
+      const modal = document.getElementById('modal-overlay');
+      const modalIcon = document.getElementById('modal-icon');
+      const modalTitle = document.getElementById('modal-title');
+      const modalContent = document.getElementById('modal-content');
+      const modalActions = document.getElementById('modal-actions');
+      const primaryBtn = document.getElementById('modal-primary-btn');
+
+      // Set content
+      modalIcon.textContent = icon;
+      modalTitle.textContent = title;
+      
+      // Handle content (string or HTML)
+      if (typeof content === 'string') {
+        modalContent.innerHTML = content.split('\n').map(line => 
+          line.trim() ? `<p>${line}</p>` : ''
+        ).join('');
+      } else {
+        modalContent.innerHTML = content;
+      }
+
+      // Set up buttons
+      modalActions.innerHTML = '';
+      
+      if (secondaryText) {
+        const secondaryBtn = document.createElement('button');
+        secondaryBtn.className = 'modal-button modal-button-secondary';
+        secondaryBtn.textContent = secondaryText;
+        secondaryBtn.onclick = () => {
+          if (onSecondary) onSecondary();
+          closeModal();
+        };
+        modalActions.appendChild(secondaryBtn);
+      }
+
+      const primaryButton = document.createElement('button');
+      primaryButton.className = 'modal-button modal-button-primary';
+      primaryButton.textContent = primaryText;
+      primaryButton.onclick = () => {
+        if (onPrimary) onPrimary();
+        closeModal();
+      };
+      modalActions.appendChild(primaryButton);
+
+      // Show modal
+      modal.classList.add('show');
+      document.body.style.overflow = 'hidden';
+
+      // Store close callback
+      modal._onClose = onClose;
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('modal-overlay');
+      modal.classList.remove('show');
+      document.body.style.overflow = '';
+      
+      if (modal._onClose) {
+        modal._onClose();
+        modal._onClose = null;
+      }
+    }
+
+    // Enhanced alert function
+    function showAlert(message, options = {}) {
+      const lines = message.split('\n');
+      const firstLine = lines[0];
+      const restLines = lines.slice(1).join('\n');
+
+      // Auto-detect icon and title from message
+      let icon = '📱';
+      let title = 'Message';
+      
+      if (firstLine.includes('✅')) {
+        icon = '✅';
+        title = 'Success';
+      } else if (firstLine.includes('❌')) {
+        icon = '❌';
+        title = 'Error';
+      } else if (firstLine.includes('⚠️')) {
+        icon = '⚠️';
+        title = 'Warning';
+      } else if (firstLine.includes('📊')) {
+        icon = '📊';
+        title = 'Information';
+      } else if (firstLine.includes('🔒')) {
+        icon = '🔒';
+        title = 'Security';
+      } else if (firstLine.includes('🌐')) {
+        icon = '🌐';
+        title = 'Connection';
+      } else if (firstLine.includes('🔄')) {
+        icon = '🔄';
+        title = 'Processing';
+      } else if (firstLine.includes('📝')) {
+        icon = '📝';
+        title = 'Journal';
+      } else if (firstLine.includes('📸')) {
+        icon = '📸';
+        title = 'Photos';
+      } else if (firstLine.includes('📏')) {
+        icon = '📏';
+        title = 'Size Limit';
+      }
+
+      showModal({
+        icon,
+        title,
+        content: restLines || firstLine,
+        ...options
+      });
+    }
+
+    // Enhanced confirm function
+    function showConfirm(message, options = {}) {
+      const lines = message.split('\n');
+      const firstLine = lines[0];
+      const restLines = lines.slice(1).join('\n');
+
+      // Auto-detect icon and title
+      let icon = '❓';
+      let title = 'Confirm';
+      
+      if (firstLine.includes('🔄')) {
+        icon = '🔄';
+        title = 'Migration';
+      } else if (firstLine.includes('🗑️')) {
+        icon = '🗑️';
+        title = 'Delete';
+      } else if (firstLine.includes('📸')) {
+        icon = '📸';
+        title = 'Photos';
+      }
+
+      return new Promise((resolve) => {
+        showModal({
+          icon,
+          title,
+          content: restLines || firstLine,
+          primaryText: 'Yes',
+          secondaryText: 'Cancel',
+          onPrimary: () => resolve(true),
+          onSecondary: () => resolve(false)
+        });
+      });
+    }
+
+    // Close modal when clicking outside
+    document.getElementById('modal-overlay').addEventListener('click', (e) => {
+      if (e.target.id === 'modal-overlay') {
+        closeModal();
+      }
+    });
+
+    // Close modal with Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+      }
+    });
+
+    // Backup reflections to a secondary key with timestamp
+    function backupReflections() {
+      try {
+        const payload = {
+          reflections,
+          backedUpAt: new Date().toISOString()
+        };
+        localStorage.setItem('reflections_backup', JSON.stringify(payload));
+      } catch (e) {
+        console.warn('Backup failed:', e);
+      }
+    }
+
+    // Smart image management system
+    function createImageBackups() {
+      try {
+        const imageBackups = {};
+        let backupCount = 0;
+        
+        // Create separate image backups for each reflection with images
+        reflections.forEach((reflection, index) => {
+          if (reflection.image && reflection.image.length > 0) {
+            // Use a more robust key that includes title and date
+            const title = reflection.title?.replace(/[^a-zA-Z0-9]/g, '_') || 'untitled';
+            const date = reflection.date || reflection.createdAt || Date.now();
+            const imageKey = `image_backup_${title}_${date}_${index}`;
+            
+            try {
+              localStorage.setItem(imageKey, reflection.image);
+              imageBackups[index] = {
+                key: imageKey,
+                title: reflection.title,
+                date: date
+              };
+              backupCount++;
+            } catch (e) {
+              console.warn(`Failed to backup image for reflection ${index}:`, e);
+            }
+          }
+        });
+        
+        // Store image backup mapping
+        if (backupCount > 0) {
+          localStorage.setItem('image_backup_mapping', JSON.stringify(imageBackups));
+          console.log(`Created ${backupCount} image backups`);
+        }
+        
+        return backupCount;
+      } catch (e) {
+        console.error('Failed to create image backups:', e);
+        return 0;
+      }
+    }
+
+    function restoreImagesFromBackups() {
+      try {
+        const mapping = localStorage.getItem('image_backup_mapping');
+        if (!mapping) return 0;
+        
+        const imageBackups = JSON.parse(mapping);
+        let restoredCount = 0;
+        
+        Object.entries(imageBackups).forEach(([index, backupInfo]) => {
+          // Handle both old format (string) and new format (object)
+          const imageKey = typeof backupInfo === 'string' ? backupInfo : backupInfo.key;
+          const imageData = localStorage.getItem(imageKey);
+          
+          if (imageData && reflections[index]) {
+            reflections[index].image = imageData;
+            restoredCount++;
+            console.log(`Restored image for reflection ${index}: ${reflections[index].title}`);
+          }
+        });
+        
+        if (restoredCount > 0) {
+          console.log(`Restored ${restoredCount} images from backups`);
+        }
+        
+        return restoredCount;
+      } catch (e) {
+        console.error('Failed to restore images from backups:', e);
+        return 0;
+      }
+    }
+
+    // Comprehensive data protection system
+    function createMultipleBackups() {
+      try {
+        const timestamp = Date.now();
+        const backupData = {
+          timestamp: timestamp,
+          reflections: reflections,
+          totalCount: reflections.length,
+          version: '2.0'
+        };
+        
+        // Create multiple backup keys with different strategies
+        const backupKeys = [
+          'reflections_backup_1',    // Primary backup
+          'reflections_backup_2',    // Secondary backup
+          `reflections_backup_${timestamp}`, // Timestamped backup
+          'reflections_emergency'    // Emergency backup
+        ];
+        
+        let successCount = 0;
+        backupKeys.forEach(key => {
+          try {
+            localStorage.setItem(key, JSON.stringify(backupData));
+            successCount++;
+          } catch (e) {
+            console.warn(`Failed to create backup ${key}:`, e);
+          }
+        });
+        
+        // Also create image backups
+        const imageBackupCount = createImageBackups();
+        
+        console.log(`Created ${successCount}/${backupKeys.length} backups and ${imageBackupCount} image backups`);
+        return successCount > 0;
+      } catch (e) {
+        console.error('Failed to create backups:', e);
+        return false;
+      }
+    }
+
+    // Safely persist reflections to localStorage with comprehensive protection
+    function saveReflectionsToLocalStorageSafely(protectIndex = null) {
+      // If user is signed in to Firebase, don't save to localStorage to avoid quota issues
+      if (currentUser && currentUser.isFirebase) {
+        console.log('User is signed in to Firebase, skipping localStorage save to avoid quota issues');
+        return true;
+      }
+      
+      // Always create backups before any save operation (only for non-Firebase users)
+      createMultipleBackups();
+      
+      try {
+        localStorage.setItem('reflections', JSON.stringify(reflections));
+        return true;
+      } catch (e) {
+        const isQuota = e && (e.name === 'QuotaExceededError' || e.code === 22 || String(e).toLowerCase().includes('quota'));
+        if (!isQuota) return false;
+        
+        console.warn('localStorage quota exceeded, implementing data protection strategy...');
+        
+        // Strategy 1: Compress images instead of removing them
+        if (Array.isArray(reflections)) {
+          let imagesCompressed = 0;
+          for (let i = 0; i < reflections.length; i++) {
+            if (reflections[i] && reflections[i].image && reflections[i].image.length > 100000) { // Only compress large images (>100KB)
+              try {
+                // Compress image by reducing quality
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                
+                img.onload = function() {
+                  // Reduce size by 50%
+                  canvas.width = img.width * 0.5;
+                  canvas.height = img.height * 0.5;
+                  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                  
+                  // Convert to lower quality JPEG
+                  const compressedImage = canvas.toDataURL('image/jpeg', 0.7);
+                  reflections[i].image = compressedImage;
+                  imagesCompressed++;
+                  console.log(`Compressed large image for reflection ${i}: ${reflections[i].title}`);
+                };
+                
+                img.src = reflections[i].image;
+              } catch (e) {
+                console.warn(`Failed to compress image for reflection ${i}:`, e);
+              }
+            }
+          }
+          console.log(`Compressed ${imagesCompressed} large images`);
+        }
+        
+        try {
+          localStorage.setItem('reflections', JSON.stringify(reflections));
+          console.log('Successfully saved after stripping old images');
+          return true;
+        } catch (e2) {
+          console.warn('Still quota exceeded, implementing emergency compression...');
+          
+          // Strategy 2: Compress text content (remove extra whitespace, shorten long content)
+          if (Array.isArray(reflections)) {
+            reflections.forEach((reflection, index) => {
+              if (reflection.reflection && reflection.reflection.length > 1000) {
+                // Truncate very long reflections to 1000 characters
+                reflection.reflection = reflection.reflection.substring(0, 1000) + '... [truncated]';
+                console.log(`Compressed long reflection ${index}: ${reflection.title}`);
+              }
+            });
+          }
+          
+          try {
+            localStorage.setItem('reflections', JSON.stringify(reflections));
+            console.log('Successfully saved after compression');
+        return true;
+          } catch (e3) {
+            console.error('Emergency: Storage still full after all optimizations');
+            
+            // Strategy 3: Last resort - keep only essential data
+            const emergencyReflections = reflections.map(reflection => ({
+              title: reflection.title || 'Untitled',
+              reflection: reflection.reflection ? reflection.reflection.substring(0, 500) : '',
+              date: reflection.date || reflection.createdAt || new Date().toISOString(),
+              // Remove image, createdAt, and other non-essential fields
+            }));
+            
+            try {
+              localStorage.setItem('reflections', JSON.stringify(emergencyReflections));
+              console.log('Saved emergency compressed version');
+              
+              // Update the main reflections array to match
+              reflections.length = 0;
+              reflections.push(...emergencyReflections);
+              
+              alert(`⚠️ Storage Emergency\n\nYour storage is critically full. I've saved your journals in compressed format to prevent data loss.\n\n• All images removed\n• Long text truncated\n• All journals preserved\n\nPlease export your data and consider signing in to sync to cloud storage.`);
+              return true;
+            } catch (e4) {
+              console.error('CRITICAL: Unable to save even emergency version');
+              alert(`🚨 CRITICAL STORAGE ERROR\n\nUnable to save your journals due to storage limits.\n\nYour data is backed up in multiple locations. Please:\n1. Export your journals immediately\n2. Clear browser cache\n3. Sign in to sync to cloud storage\n\nYour journals are NOT lost - they're in the backups!`);
+        return false;
+            }
+          }
+        }
+      }
+    }
+
+    const originalQuotes = [
+      "The wound is the place where the light enters you. Rumi",
+      "We should write because humans are spiritual beings and writing is a powerful form of prayer and meditation. – Gloria Anzaldúa",
+      "Fill your paper with the breathings of your heart. – William Wordsworth",
+      "There is no way to happiness—happiness is the way. – Thich Nhat Hanh",
+      "The present moment is filled with joy and happiness. If you are attentive, you will see it. – Thich Nhat Hanh",
+      "Breathing in, I calm my body. Breathing out, I smile. Dwelling in the present moment, I know this is a wonderful moment. – Thich Nhat Hanh",
+      "You do not need to know precisely what is happening, or exactly where it is all going. What you need is to recognize the possibilities and challenges offered by the present moment, and to embrace them with courage, faith, and hope. – Thomas Merton",
+      "Happiness is not a matter of intensity but of balance, order, rhythm and harmony. – Thomas Merton",
+      "Compassion is a verb. – Thich Nhat Hanh",
+      "When another person makes you suffer, it is because he suffers deeply within himself. He does not need punishment; he needs help. – Thich Nhat Hanh",
+      "Understanding is love's other name. If you don't understand, you cannot love. – Thich Nhat Hanh",
+      "Love is our true destiny. We do not find the meaning of life by ourselves alone—we find it with another. – Thomas Merton",
+      "The biggest human temptation is to settle for too little love. – Thomas Merton",
+      "Our job is to love others without stopping to inquire whether or not they are worthy. – Thomas Merton",
+      "Sometimes your joy is the source of your smile, but sometimes your smile can be the source of your joy. – Thich Nhat Hanh",
+      "Walk as if you are kissing the Earth with your feet. – Thich Nhat Hanh",
+      "Because you are alive, everything is possible. – Thich Nhat Hanh",
+      "We are not at peace because we have not yet learned to be alone with ourselves. – Thomas Merton",
+      "Silence is the language of God, all else is poor translation. – Thomas Merton",
+      "The things we fear most in prayer are the things that can save us. – Thomas Merton",
+      "In the stillness of your soul, wisdom whispers its truths. – Unknown",
+      "Every step you take is a dance with the universe's rhythm. – Unknown",
+      "The heart's quiet moments hold the seeds of transformation. – Unknown",
+      "Embrace the shadows, for they guide you to your light. – Unknown",
+      "Your spirit blooms where gratitude takes root. – Unknown",
+      "Do small things with great love. — St. Teresa of Calcutta",
+      "Where there is love, there is life. — Mahatma Gandhi",
+      "Kindness is the language which the deaf can hear and the blind can see. — Mark Twain",
+      "Joy is the simplest form of gratitude. — Karl Barth",
+      "Give thanks in all circumstances. — 1 Thessalonians 5:18",
+      "Come to me, all you who are weary and burdened, and I will give you rest. — Matthew 11:28",
+      "Do not be afraid, for I am with you always. — Matthew 28:20",
+      "Pray as though everything depended on God. Work as though everything depended on you. — St. Augustine",
+      "Lord, make me an instrument of your peace. — St. Francis of Assisi",
+      "Peace begins with a smile. — St. Teresa of Calcutta",
+      "Kind words can be short and easy to speak, but their echoes are truly endless. — St. Teresa of Calcutta",
+      "Every morning we are born again. What we do today is what matters most. — Buddha",
+      "The Lord is my shepherd; I shall not want. — Psalm 23:1",
+      "Those who hope in the Lord will renew their strength. They will soar on wings like eagles. — Isaiah 40:31",
+      "The Lord will fight for you; you need only to be still. — Exodus 14:14",
+      "Rejoice always, pray without ceasing, give thanks in all circumstances. — 1 Thessalonians 5:16–18",
+      "The fruit of the Spirit is love, joy, peace, patience, kindness, generosity, faithfulness, gentleness, and self-control. — Galatians 5:22–23",
+      "You learn to speak by speaking, to study by studying, to run by running, to work by working; and just so, you learn to love by loving. — St. Francis de Sales",
+      "Holiness consists simply in doing God's will, and being just what God wants us to be. — St. Thérèse of Lisieux",
+      "Joy is prayer; joy is strength; joy is love; joy is a net of love by which you can catch souls. — St. Teresa of Calcutta",
+      "A gentle word, a kind look, a good-natured smile can work wonders and accomplish miracles. — William Hazlitt"
+    ];
+
+    // Shuffle quotes array using Fisher-Yates algorithm
+    function shuffleArray(array) {
+      const shuffled = [...array];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    }
+
+    // Create shuffled quotes array
+    const quotes = shuffleArray(originalQuotes);
+    
+    // Quote rendering helpers
+    function formatQuote(q) {
+      // Split by common separators before author name (–, —, -) and also last period + space pattern if no dash
+      const dashMatch = q.match(/^(.*?)[\s\u2013\u2014-]+\s([^\-\u2013\u2014].*)$/);
+      if (dashMatch) return { text: dashMatch[1].trim(), author: dashMatch[2].trim() };
+      // Fallback: try last sentence boundary " . Name"
+      const periodMatch = q.match(/^(.*?)(?:\.|\!|\?)\s+([^\.\!\?]{2,})$/);
+      if (periodMatch) return { text: periodMatch[1].trim(), author: periodMatch[2].trim() };
+      return { text: q, author: '' };
+    }
+
+    function renderQuote(q) {
+      const { text, author } = formatQuote(q);
+      const el = document.getElementById('quote');
+      if (!el) return;
+      el.innerHTML = author ? `${text}<span class="quote-author">${author}</span>` : text;
+    }
+
+    // Set initial quote immediately after quotes array is created
+    let lastQuoteIndex = 0;
+    renderQuote(quotes[0]);
+    
+    const originalJournalQuestions = [
+      "What moment today felt like a gift from the universe?",
+      "How did you find peace in a challenging situation?",
+      "What inspires your soul to create today?",
+      "What is one thing you're grateful for right now?",
+      "What vision for your future feels most alive?",
+      "Where did I notice God’s presence today?"
+    ];
+
+    // Create shuffled journal questions array
+    const journalQuestions = shuffleArray(originalJournalQuestions);
+
+    function getRandomQuestion() {
+      // Always return a random question to ensure variety
+      return journalQuestions[Math.floor(Math.random() * journalQuestions.length)];
+    }
+
+
+    function newQuote() {
+      let randomIndex;
+      
+      // Ensure we don't show the same quote twice in a row
+      do {
+        randomIndex = Math.floor(Math.random() * quotes.length);
+      } while (randomIndex === lastQuoteIndex && quotes.length > 1);
+      
+      lastQuoteIndex = randomIndex;
+      renderQuote(quotes[randomIndex]);
+    }
+
+    function newQuestion() {
+      document.getElementById('reflection-question').textContent = getRandomQuestion();
+    }
+
+    function updateDateTime() {
+      const now = new Date();
+      
+      // Format date for header - minimalist format
+      const dateOptions = {
+        month: 'short', 
+        day: 'numeric'
+      };
+      const formattedDate = now.toLocaleDateString('en-US', dateOptions);
+      document.getElementById('current-date').textContent = formattedDate;
+      
+      // Format time for header - clean format
+      const timeOptions = { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        hour12: true 
+      };
+      const formattedTime = now.toLocaleTimeString('en-US', timeOptions);
+      document.getElementById('current-time').textContent = formattedTime;
+      
+      // Format date and time for entry screen
+      const entryDateElement = document.getElementById('entry-date');
+      if (entryDateElement) {
+        const entryOptions = {
+          weekday: 'long', 
+          month: 'long', 
+          day: 'numeric',
+          year: 'numeric', 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          hour12: true
+        };
+        entryDateElement.textContent = now.toLocaleString('en-US', entryOptions);
+      }
+    }
+
+    // Authentication management
+    let currentUser = null;
+
+    // Show login form
+    function showLoginForm() {
+      document.getElementById('login-form').style.display = 'block';
+      document.getElementById('signup-form').style.display = 'none';
+      document.getElementById('auth-message').style.display = 'none';
+    }
+
+    // Show signup form
+    function showSignupForm() {
+      document.getElementById('login-form').style.display = 'none';
+      document.getElementById('signup-form').style.display = 'block';
+      document.getElementById('auth-message').style.display = 'none';
+    }
+
+    // Show auth screen
+    function showAuthScreen() {
+      document.getElementById('auth-screen').classList.remove('hidden');
+      document.getElementById('main-screen').classList.add('hidden');
+      document.getElementById('entry-screen').classList.add('hidden');
+      document.getElementById('history-screen').classList.add('hidden');
+      
+      // Hide sign out button in header
+      document.getElementById('sign-out-btn').style.display = 'none';
+      
+      // Hide options menu buttons when not signed in
+      document.getElementById('start-journaling-btn').style.display = 'none';
+      document.getElementById('past-reflections-btn').style.display = 'none';
+      document.getElementById('home-btn').style.display = 'none';
+      
+      showLoginForm();
+    }
+
+    function showMainScreen() {
+      document.getElementById('auth-screen').classList.add('hidden');
+      document.getElementById('main-screen').classList.remove('hidden');
+      document.getElementById('entry-screen').classList.add('hidden');
+      document.getElementById('history-screen').classList.add('hidden');
+      
+      // Show sign out button in header
+      document.getElementById('sign-out-btn').style.display = 'block';
+      
+      // Show options menu buttons when signed in
+      document.getElementById('start-journaling-btn').style.display = 'block';
+      document.getElementById('past-reflections-btn').style.display = 'block';
+      document.getElementById('home-btn').style.display = 'block';
+    }
+
+    // Handle user signup
+    async function handleSignup() {
+      const message = document.getElementById('auth-message');
+      message.textContent = 'Email/password signup is not available. Please use Google Sign-In instead.';
+        message.style.display = 'block';
+      message.style.color = '#ff6b6b';
+    }
+
+    // Handle user login
+    async function handleLogin() {
+      const message = document.getElementById('auth-message');
+      message.textContent = 'Email/password login is not available. Please use Google Sign-In instead.';
+        message.style.display = 'block';
+      message.style.color = '#ff6b6b';
+    }
+
+    // Handle forgot password
+    async function handleForgotPassword() {
+      const message = document.getElementById('auth-message');
+      message.textContent = 'Password reset is not available. Please use Google Sign-In instead.';
+        message.style.display = 'block';
+      message.style.color = '#ff6b6b';
+    }
+
+    // OAuth functions removed - focusing on working authentication methods
+
+    // Simple local storage authentication - no configuration needed
+
+    function showCloudOptions() {
+      document.getElementById('cloud-options').style.display = 'block';
+    }
+
+    function hideCloudOptions() {
+      document.getElementById('cloud-options').style.display = 'none';
+    }
+
+    // Elegant transition functions - NO WHITE FLASHES
+    function showLoadingOverlay(text = 'Loading...') {
+      const overlay = document.getElementById('loading-overlay');
+      const loadingText = document.getElementById('loading-text');
+      loadingText.textContent = text;
+      
+      // Immediately show overlay to prevent any white flash
+      overlay.style.opacity = '1';
+      overlay.style.visibility = 'visible';
+      overlay.style.pointerEvents = 'all';
+      overlay.style.display = 'flex';
+      overlay.style.zIndex = '99999';
+      overlay.classList.add('active');
+      
+      // Prevent body scrolling during transition
+      document.body.classList.add('transitioning');
+    }
+    
+    function hideLoadingOverlay() {
+      const overlay = document.getElementById('loading-overlay');
+      
+      // Reset body scrolling
+      document.body.classList.remove('transitioning');
+      
+      // Fade out the overlay slowly to ensure smooth transition
+      overlay.style.opacity = '0';
+      overlay.style.visibility = 'hidden';
+      overlay.style.pointerEvents = 'none';
+      
+      // Remove active class after fade
+      setTimeout(() => {
+        overlay.classList.remove('active');
+      }, 200);
+    }
+    
+    function instantScreenChange(fromScreen, toScreen, callback) {
+      const from = document.getElementById(fromScreen);
+      const to = document.getElementById(toScreen);
+      
+      // Instantly hide current screen and show new screen
+      from.classList.add('hidden');
+      to.classList.remove('hidden');
+      
+      // Show/hide sign out button based on screen
+      if (toScreen === 'main-screen') {
+        document.getElementById('sign-out-btn').style.display = 'block';
+      } else if (toScreen === 'auth-screen') {
+        document.getElementById('sign-out-btn').style.display = 'none';
+      }
+      
+      // Execute callback if provided
+      if (callback) callback();
+      
+      // Hide loading overlay after a longer delay to ensure everything is ready
+      setTimeout(() => {
+        hideLoadingOverlay();
+      }, 1000); // 1 second delay to ensure no white page
+    }
+
+    // Firebase Google Sign-In - SIMPLE APPROACH
+    async function signInWithGoogle() {
+      const message = document.getElementById('auth-message');
+      
+      try {
+        // Check if Firebase is initialized
+        if (!firebase || !auth) {
+          message.textContent = 'Firebase is loading... Please wait a moment and try again.';
+          message.style.display = 'block';
+          message.style.color = '#ff6b6b';
+          console.error('Firebase not initialized:', { firebase: !!firebase, auth: !!auth });
+          
+          // Try to reinitialize Firebase
+          setTimeout(async () => {
+            if (initializeFirebase()) {
+              message.textContent = 'Firebase loaded! You can now sign in.';
+              message.style.color = '#4CAF50';
+              setTimeout(() => {
+                message.style.display = 'none';
+              }, 2000);
+            }
+          }, 2000);
+          return;
+        }
+        
+        // Sign in with Google - try popup first, fallback to redirect if needed
+        const provider = new firebase.auth.GoogleAuthProvider();
+        
+        // Configure provider to help with browser compatibility
+        provider.addScope('email');
+        provider.addScope('profile');
+        provider.setCustomParameters({
+          'prompt': 'select_account',
+          'hd': '' // Allow any domain
+        });
+        
+        let result;
+        
+        try {
+          // Try popup first (preferred for better UX)
+          result = await auth.signInWithPopup(provider);
+        } catch (popupError) {
+          console.error('Popup authentication error:', popupError);
+          
+          // Handle specific error cases
+          if (popupError.code === 'auth/popup-blocked') {
+            message.textContent = 'Popup blocked by browser. Please allow popups and try again.';
+            message.style.color = '#ff6b6b';
+            return;
+          }
+          
+          if (popupError.code === 'auth/popup-closed-by-user') {
+            message.textContent = 'Sign-in cancelled. Please try again.';
+            message.style.color = '#fbbf24';
+            return;
+          }
+          
+          if (popupError.code === 'auth/operation-not-allowed') {
+            message.textContent = 'Google sign-in is not enabled. Please contact support.';
+            message.style.color = '#ff6b6b';
+            return;
+          }
+          
+          if (popupError.code === 'auth/unauthorized-domain') {
+            message.textContent = 'Domain not authorized. Please access from the correct URL.';
+            message.style.color = '#ff6b6b';
+            return;
+          }
+          
+          // Handle the specific "disallowed_useragent" error
+          if (popupError.message.includes('disallowed_useragent') || 
+              popupError.message.includes('Access blocked') ||
+              popupError.message.includes('Use secure browsers')) {
+            message.textContent = 'Authentication blocked by browser security. Please try a different browser or access method.';
+            message.style.color = '#ff6b6b';
+            return;
+          }
+          
+          // Handle session storage issues
+          if (popupError.message.includes('missing initial state') || 
+              popupError.message.includes('sessionStorage') ||
+              popupError.message.includes('Unable to process request')) {
+            console.log('Session storage issue detected, using redirect method...');
+            message.textContent = 'Using secure sign-in method...';
+            
+            try {
+              await auth.signInWithRedirect(provider);
+              return; // Redirect will handle the rest
+            } catch (redirectError) {
+              console.error('Redirect also failed:', redirectError);
+              message.textContent = 'Sign-in failed. Please try refreshing the page and signing in again.';
+              message.style.color = '#ff6b6b';
+              return;
+            }
+          }
+          
+          // For any other popup errors, try redirect as fallback
+          console.log('Popup failed with unknown error, trying redirect method...');
+          message.textContent = 'Trying alternative sign-in method...';
+          
+          try {
+            await auth.signInWithRedirect(provider);
+            return; // Redirect will handle the rest
+          } catch (redirectError) {
+            console.error('Both popup and redirect failed:', redirectError);
+            message.textContent = 'Sign-in failed. Please try refreshing the page and signing in again.';
+            message.style.color = '#ff6b6b';
+            return;
+          }
+        }
+        
+        // User signed in successfully
+        currentUser = {
+          id: result.user.uid,
+          email: result.user.email,
+          name: result.user.displayName,
+          photoURL: result.user.photoURL,
+          isFirebase: true
+        };
+        
+        // Load reflections in background
+        await loadReflections();
+        
+        // Simple instant screen change - no loading overlay
+        document.getElementById('auth-screen').classList.add('hidden');
+        document.getElementById('main-screen').classList.remove('hidden');
+        
+      } catch (error) {
+        console.error('Google sign-in error:', error);
+        
+        // Provide more specific error messages
+        let errorMessage = 'Sign-in error: ';
+        if (error.code === 'auth/popup-closed-by-user') {
+          errorMessage += 'Sign-in was cancelled. Please try again.';
+        } else if (error.code === 'auth/popup-blocked') {
+          errorMessage += 'Popup was blocked. Please allow popups and try again.';
+        } else if (error.code === 'auth/unauthorized-domain') {
+          errorMessage += 'Domain not authorized. Please add localhost to Firebase authorized domains.';
+        } else if (error.code === 'auth/operation-not-allowed') {
+          errorMessage += 'Google sign-in not enabled. Please enable it in Firebase console.';
+        } else if (error.message.includes('sessionStorage') || 
+                   error.message.includes('Unable to process request') ||
+                   error.message.includes('missing initial state')) {
+          errorMessage += 'Browser storage issue. Please try refreshing the page or use a different browser.';
+        } else {
+          errorMessage += error.message;
+        }
+        
+        message.textContent = errorMessage;
+        message.style.display = 'block';
+        message.style.color = '#ff6b6b';
+      }
+    }
+
+    function debugFirebase() {
+      const debugInfo = `🔍 Firebase Debug Info:
+
+Firebase SDK: ${typeof window.firebase !== 'undefined' ? '✅ Loaded' : '❌ Not loaded'}
+Firebase App: ${typeof firebase !== 'undefined' ? '✅ Initialized' : '❌ Not initialized'}
+Firebase Auth: ${typeof auth !== 'undefined' ? '✅ Available' : '❌ Not available'}
+Firebase DB: ${typeof db !== 'undefined' ? '✅ Available' : '❌ Not available'}
+
+Current URL: ${window.location.href}
+User Agent: ${navigator.userAgent}
+
+Console Errors: Check browser console (F12) for detailed errors
+
+Next Steps:
+1. If Firebase SDK not loaded: Check internet connection
+2. If Firebase not initialized: Refresh the page
+3. If Auth not available: Check Firebase config
+4. Check browser console for detailed error messages`;
+      
+      alert(debugInfo);
+      console.log('Firebase Debug:', {
+        firebaseSDK: typeof window.firebase,
+        firebase: typeof firebase,
+        auth: typeof auth,
+        db: typeof db,
+        config: firebaseConfig
+      });
+    }
+
+    async function debugFirebaseData() {
+      if (!isFirebaseUser()) {
+        showAlert('🔒 Please sign in with Google first to debug data.');
+        return;
+      }
+      
+      const userId = getCurrentUserId();
+      if (!userId) {
+        showAlert('❌ User ID not available. Please sign in again.');
+        return;
+      }
+
+      try {
+        console.log('🔍 Debugging Firebase Data...');
+        console.log('Current User:', currentUser);
+        
+        // Test Firestore connection
+        const testRef = db.collection('reflections');
+        const snapshot = await testRef.where('userId', '==', userId).get();
+        
+        console.log('Firestore Query Results:', {
+          totalDocs: snapshot.size,
+          docs: snapshot.docs.map(doc => ({
+            id: doc.id,
+            data: doc.data()
+          }))
+        });
+        
+        // Check localStorage
+        const localData = localStorage.getItem('reflections');
+        console.log('LocalStorage Data:', localData ? JSON.parse(localData) : 'No local data');
+        
+        const debugInfo = `🔍 Firebase Data Debug:
+
+User ID: ${userId}
+User Email: ${currentUser.email}
+
+Firestore Results:
+- Total documents: ${snapshot.size}
+- Documents: ${snapshot.docs.map(doc => doc.data().title || 'Untitled').join(', ') || 'None'}
+
+LocalStorage:
+- Has local data: ${localData ? 'Yes' : 'No'}
+- Local reflections: ${localData ? JSON.parse(localData).length : 0}
+
+Check browser console (F12) for detailed logs.`;
+        
+        alert(debugInfo);
+        
+      } catch (error) {
+        console.error('Debug error:', error);
+        alert(`Debug Error: ${error.message}\n\nCheck browser console for details.`);
+      }
+    }
+
+    function showFirebaseSetup() {
+      const setupGuide = `🔥 Firebase Setup Guide:
+
+✅ Step 1: Enable Authentication
+1. Go to: https://console.firebase.google.com/project/spiritual-journey-e3330/authentication
+2. Click "Get started"
+3. Go to "Sign-in method" tab
+4. Enable "Google" provider
+5. Add authorized domains:
+   - localhost (for testing)
+   - your-domain.com (when you deploy)
+
+✅ Step 2: Enable Firestore Database
+1. Go to: https://console.firebase.google.com/project/spiritual-journey-e3330/firestore
+2. Click "Create database"
+3. Choose "Start in test mode"
+4. Select location (closest to you)
+
+✅ Step 3: Test Your App
+1. Refresh this page
+2. Click "Continue with Google"
+3. Sign in with your Google account
+4. Start journaling!
+
+🎉 Your Firebase project is already configured!
+Project ID: spiritual-journey-e3330
+Auth Domain: spiritual-journey-e3330.firebaseapp.com
+
+Need help? Check the console for any error messages.`;
+      
+      alert(setupGuide);
+    }
+
+    function setupFirebase() {
+      alert('🔥 Firebase Setup:\n\n1. Go to https://console.firebase.google.com\n2. Create a new project\n3. Enable Authentication\n4. Add your domain\n5. Copy the config and paste it here\n\nFirebase is much easier than Supabase!');
+    }
+
+    function setupAuth0() {
+      alert('🔐 Auth0 Setup:\n\n1. Go to https://auth0.com\n2. Create a free account\n3. Create a new application\n4. Copy the domain and client ID\n5. Add it to your app\n\nAuth0 handles all the email complexity!');
+    }
+
+    function setupClerk() {
+      alert('✨ Clerk Setup:\n\n1. Go to https://clerk.com\n2. Create a free account\n3. Create a new application\n4. Copy the publishable key\n5. Add it to your app\n\nClerk has beautiful pre-built components!');
+    }
+
+
+
+    // Handle sign out
+    async function handleSignOut() {
+      try {
+        if (currentUser && currentUser.isFirebase && auth) {
+          // Firebase sign out - this will clear the session and allow account switching
+          await auth.signOut();
+        }
+        
+        // Preserve local journals; only sign out the user
+        backupReflections();
+        currentUser = null;
+        
+        // Hide sign out button and show auth screen
+        document.getElementById('sign-out-btn').style.display = 'none';
+        document.getElementById('main-screen').classList.add('hidden');
+        document.getElementById('auth-screen').classList.remove('hidden');
+        
+        // Hide options menu buttons when signed out
+        document.getElementById('start-journaling-btn').style.display = 'none';
+        document.getElementById('past-reflections-btn').style.display = 'none';
+        document.getElementById('home-btn').style.display = 'none';
+        
+        console.log('User signed out successfully - ready for account switching');
+        
+      } catch (err) {
+        console.error('Sign out error:', err);
+        
+        // Force sign out even if there's an error
+        currentUser = null;
+        reflections = [];
+        localStorage.removeItem('reflections');
+        document.getElementById('sign-out-btn').style.display = 'none';
+        document.getElementById('main-screen').classList.add('hidden');
+        document.getElementById('auth-screen').classList.remove('hidden');
+      }
+    }
+
+    // Manual migration function to move all current journals to Firebase
+    async function manualMigrateToCloud() {
+      if (!currentUser) {
+        alert('❌ Please sign in first to migrate your journals to cloud storage.');
+        return;
+      }
+
+      try {
+        // Collect all journals from various sources
+        const allJournals = [];
+        
+        // 1. Get journals from main localStorage
+        const mainReflections = localStorage.getItem('reflections');
+        if (mainReflections) {
+          try {
+            const parsed = JSON.parse(mainReflections);
+            if (Array.isArray(parsed)) {
+              allJournals.push(...parsed);
+              console.log(`Found ${parsed.length} journals in main storage`);
+            }
+          } catch (e) {
+            console.warn('Could not parse main reflections:', e);
+          }
+        }
+
+        // 2. Get journals from all backup sources
+        const backupKeys = [
+          'reflections_backup_1',
+          'reflections_backup_2', 
+          'reflections_emergency',
+          'reflections_backup'
+        ];
+        
+        // Check for timestamped backups
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('reflections_backup_') && !backupKeys.includes(key)) {
+            backupKeys.push(key);
+          }
+        }
+
+        for (const backupKey of backupKeys) {
+          const backup = localStorage.getItem(backupKey);
+          if (backup) {
+            try {
+              const parsed = JSON.parse(backup);
+              if (Array.isArray(parsed)) {
+                // Add journals that aren't already in the main list
+                parsed.forEach(backupJournal => {
+                  const exists = allJournals.some(journal => 
+                    journal.title === backupJournal.title && 
+                    journal.date === backupJournal.date
+                  );
+                  if (!exists) {
+                    allJournals.push(backupJournal);
+                  }
+                });
+                console.log(`Found additional journals in ${backupKey}`);
+              }
+            } catch (e) {
+              console.warn(`Could not parse backup ${backupKey}:`, e);
+            }
+          }
+        }
+
+        if (allJournals.length === 0) {
+          alert('📝 No journals found to migrate.\n\nYour journals may already be in cloud storage, or you may not have any journals yet.');
+          return;
+        }
+
+        // Show confirmation dialog
+        const confirmMessage = `🔄 Migrate to Cloud Storage\n\nFound ${allJournals.length} journals to migrate to Firebase cloud storage.\n\nThis will:\n• Upload all journals to cloud storage\n• Clear local storage to free up space\n• Make your journals accessible from any device\n\nContinue with migration?`;
+        
+        if (!confirm(confirmMessage)) {
+          return;
+        }
+
+        // Show progress
+        alert(`🔄 Starting Migration...\n\nMigrating ${allJournals.length} journals to Firebase cloud storage...\n\nThis may take a moment. Please don't close the app.`);
+
+        let migratedCount = 0;
+        let errorCount = 0;
+
+        // Upload each journal to Firebase
+        for (const journal of allJournals) {
+          const reflectionData = {
+            userId: getCurrentUserId(),
+            title: journal.title || 'Untitled',
+            reflection: journal.reflection || '',
+            date: journal.date || journal.createdAt || new Date().toISOString(),
+            image: journal.image || null,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          };
+
+          try {
+            await db.collection('reflections').add(reflectionData);
+            migratedCount++;
+            console.log(`✅ Migrated: ${journal.title}`);
+          } catch (error) {
+            errorCount++;
+            console.error(`❌ Failed to migrate: ${journal.title}`, error);
+          }
+        }
+
+        // Clear localStorage after successful migration
+        if (migratedCount > 0) {
+          try {
+            // Keep only essential data
+            const keysToKeep = ['offline_cache', 'theme', 'lastQuotaError'];
+            const keysToRemove = [];
+            
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && !keysToKeep.includes(key) && !key.startsWith('image_backup_')) {
+                keysToRemove.push(key);
+              }
+            }
+            
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+            console.log(`Cleared ${keysToRemove.length} localStorage keys`);
+          } catch (e) {
+            console.warn('Could not clear localStorage:', e);
+          }
+        }
+
+        // Reload reflections from Firebase
+        await loadReflections();
+
+        // Show results
+        let resultMessage = `✅ Migration Complete!\n\nSuccessfully migrated ${migratedCount} journals to Firebase cloud storage.`;
+        
+        if (errorCount > 0) {
+          resultMessage += `\n\n⚠️ ${errorCount} journals failed to migrate (check console for details).`;
+        }
+
+        resultMessage += `\n\n• Your journals are now safely stored in the cloud\n• No more storage quota issues\n• Access your journals from any device\n• Your data is automatically backed up\n• Browser storage has been cleared to free up space`;
+
+        alert(resultMessage);
+
+      } catch (error) {
+        console.error('Migration error:', error);
+        alert(`❌ Migration Failed\n\nError: ${error.message}\n\nPlease try again or check the console for details.`);
+      }
+    }
+
+    // Migrate existing local data to user account
+    async function migrateLocalData() {
+      if (!currentUser) {
+        console.log('No user logged in for migration');
+          return;
+        }
+
+      try {
+        // Check for existing local reflections
+        const localReflections = localStorage.getItem('reflections');
+        if (!localReflections) {
+          console.log('No local data to migrate');
+          return;
+        }
+
+        const localData = JSON.parse(localReflections);
+        if (localData.length === 0) {
+          console.log('No local reflections to migrate');
+          return;
+        }
+
+        console.log('Migrating', localData.length, 'local reflections to Firebase');
+        
+        // Show user that migration is happening
+        if (localData.length > 0) {
+          alert(`🔄 Syncing to Cloud Storage\n\nMigrating ${localData.length} journals to Firebase cloud storage...\n\nThis may take a moment. Your data is safe!`);
+        }
+
+        // Upload each local reflection to Firebase
+        for (const reflection of localData) {
+          const reflectionData = {
+            userId: getCurrentUserId(), // Add userId for Firebase
+            title: reflection.title,
+            reflection: reflection.reflection,
+            date: reflection.date,
+            image: reflection.image,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp() // Use proper Firebase timestamp
+          };
+
+          try {
+            await db.collection('reflections').add(reflectionData);
+            console.log('Successfully migrated reflection:', reflection.title);
+          } catch (error) {
+            console.error('Error migrating reflection:', error);
+          }
+        }
+
+        // Reload reflections from database
+        await loadReflections();
+        console.log('Data migration completed');
+        
+        // Clear localStorage to free up space now that data is in Firebase
+        try {
+          // Keep only essential data, clear the rest
+          const keysToKeep = ['offline_cache', 'theme', 'lastQuotaError'];
+          const keysToRemove = [];
+          
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && !keysToKeep.includes(key) && !key.startsWith('image_backup_')) {
+              keysToRemove.push(key);
+            }
+          }
+          
+          keysToRemove.forEach(key => localStorage.removeItem(key));
+          console.log(`Cleared ${keysToRemove.length} localStorage keys to free up space`);
+        } catch (e) {
+          console.warn('Could not clear localStorage:', e);
+        }
+        
+        // Show success message
+        alert(`✅ Cloud Sync Complete!\n\nSuccessfully migrated ${localData.length} journals to Firebase cloud storage.\n\n• Your journals are now safely stored in the cloud\n• No more storage quota issues\n• Access your journals from any device\n• Your data is automatically backed up\n• Browser storage has been cleared to free up space`);
+
+      } catch (err) {
+        console.error('Error during data migration:', err);
+      }
+    }
+
+    async function loadReflections() {
+      if (!currentUser) {
+        console.log('No user logged in, loading from localStorage with comprehensive backup checking');
+        
+        // Try to load from main storage first
+        let localReflections = localStorage.getItem('reflections');
+        if (localReflections) {
+          try {
+            reflections = JSON.parse(localReflections);
+            console.log('Loaded', reflections.length, 'reflections from main localStorage');
+            
+            // Try to restore any missing images from backups
+            const restoredImages = restoreImagesFromBackups();
+            if (restoredImages > 0) {
+              console.log(`Also restored ${restoredImages} images from image backups`);
+            }
+            
+            return;
+          } catch (e) {
+            console.warn('Failed to parse main reflections, trying backups:', e);
+          }
+        }
+        
+        // Try multiple backup sources in order of preference
+        const backupKeys = [
+          'reflections_backup_1',
+          'reflections_backup_2', 
+          'reflections_emergency',
+          'reflections_backup'
+        ];
+        
+        // Also check for timestamped backups
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('reflections_backup_') && key !== 'reflections_backup_1' && key !== 'reflections_backup_2') {
+            backupKeys.push(key);
+          }
+        }
+        
+        for (const backupKey of backupKeys) {
+          const backup = localStorage.getItem(backupKey);
+          if (backup) {
+            try {
+              const parsed = JSON.parse(backup);
+              if (parsed && Array.isArray(parsed.reflections)) {
+                reflections = parsed.reflections;
+                console.log(`Restored from backup ${backupKey} with`, reflections.length, 'reflections');
+                
+                // Try to restore images from image backups
+                const restoredImages = restoreImagesFromBackups();
+                if (restoredImages > 0) {
+                  console.log(`Also restored ${restoredImages} images from image backups`);
+                }
+                
+                return;
+              }
+            } catch (e) {
+              console.warn(`Failed to parse backup ${backupKey}:`, e);
+            }
+          }
+        }
+        
+        reflections = [];
+        console.log('No local data available from any source');
+        return;
+      }
+        
+      // Handle Firebase mode
+      if (isFirebaseUser()) {
+        const userId = getCurrentUserId();
+        if (!userId) {
+          console.error('Firebase user detected but no user ID available');
+          return;
+        }
+        console.log('Loading reflections for Firebase user:', userId);
+        try {
+          const snapshot = await db.collection('reflections')
+            .where('userId', '==', userId)
+            .orderBy('createdAt', 'desc')
+            .get();
+          
+          trackDatabaseOperation('reads');
+          
+          reflections = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          
+          console.log('Loaded', reflections.length, 'reflections from Firebase');
+          
+          // For Firebase users, only keep minimal data in localStorage for offline access
+          // Don't save full reflections to avoid quota issues
+          try {
+            // Only save a minimal offline cache (last 3 reflections without images)
+            const offlineCache = reflections.slice(0, 3).map(reflection => ({
+              id: reflection.id,
+              title: reflection.title,
+              date: reflection.date,
+              // Don't include images or full text to save space
+            }));
+            localStorage.setItem('offline_cache', JSON.stringify(offlineCache));
+            console.log('Created minimal offline cache');
+          } catch (e) {
+            console.warn('Could not create offline cache:', e);
+            // Don't show error to user - Firebase is primary storage
+          }
+          return;
+        } catch (error) {
+          console.error('Error loading Firebase reflections:', error);
+          console.error('Error details:', {
+            code: error.code,
+            message: error.message,
+            userId: getCurrentUserId()
+          });
+          
+          // Decide how to surface this error
+          const isExplicitFirestoreQuota = error && (error.code === 'resource-exhausted' || error.code === 'permission-denied:RESOURCE_EXHAUSTED');
+          const browserMsg = (error && (error.message || error.name || '')).toLowerCase();
+          const isBrowserStorageQuota = !isExplicitFirestoreQuota && browserMsg.includes('quota');
+
+          if (isExplicitFirestoreQuota) {
+            // Store quota error timestamp only for explicit Firestore quota errors
+            localStorage.setItem('lastQuotaError', Date.now().toString());
+            alert(`📊 Firebase Quota Exceeded\n\nYour Firebase quota has been reached.\n\n✅ Your journals are saved locally and will sync when quota resets.`);
+          } else if (error.code === 'permission-denied') {
+            alert(`🔒 Permission Denied\n\nThere's an issue with database permissions.\n\n✅ Your journals are saved locally and will sync when fixed.`);
+          } else if (error.code === 'unavailable') {
+            alert(`🌐 Service Unavailable\n\nFirebase is temporarily unavailable.\n\n✅ Your journals are saved locally and will sync when service returns.`);
+          } else if (!isBrowserStorageQuota) {
+            // Only show a generic connection alert if this is NOT a local browser storage quota
+            alert(`⚠️ Connection Error\n\nError: ${error.message}\n\n✅ Your journals are saved locally and will sync when connection is restored.`);
+          } else {
+            console.warn('Local browser storage quota issue while loading. Falling back to existing local data.');
+          }
+          
+          // Fallback to local backups/localStorage
+          let localReflections = localStorage.getItem('reflections');
+          if (!localReflections) {
+            const backup = localStorage.getItem('reflections_backup');
+            if (backup) {
+              try {
+                const parsed = JSON.parse(backup);
+                if (parsed && Array.isArray(parsed.reflections)) {
+                  reflections = parsed.reflections;
+                  console.log('Restored from backup with', reflections.length, 'reflections');
+                  saveReflectionsToLocalStorageSafely();
+                  return;
+                }
+              } catch (e) {
+                console.warn('Failed to parse backup:', e);
+              }
+            }
+          }
+          if (localReflections) {
+            reflections = JSON.parse(localReflections);
+            console.log('Using localStorage fallback with', reflections.length, 'reflections');
+          } else {
+            reflections = [];
+            console.log('No local data available');
+          }
+          return;
+        }
+      }
+        
+      // Fallback for non-Firebase users (should not happen in current setup)
+      console.log('No Firebase user detected, showing empty reflections');
+      reflections = [];
+    }
+
+    async function saveReflections() {
+      // Get form data
+      const title = document.getElementById('title').value.trim();
+      const reflection = document.getElementById('reflection').value.trim();
+      const date = document.getElementById('entry-date').textContent;
+      
+      if (!currentUser || !getCurrentUserId()) {
+        console.log('No user logged in, Firebase-only saving requires authentication');
+        showAlert('🔒 Please sign in to save your journal entries to the cloud.');
+        return;
+      }
+      
+      // Debug logging
+      console.log('💾 Saving reflection with data:', {
+        title: title,
+        reflection: reflection,
+        imageCount: Array.isArray(currentImages) ? currentImages.length : 0,
+        date: date
+      });
+      
+      // Check document size before saving
+      const estimatedSize = estimateDocumentSize(title, reflection, currentImages);
+      if (estimatedSize > 1048576) { // 1MB limit
+        showAlert(`📏 Document Too Large\n\nYour journal entry is ${Math.round(estimatedSize / 1024)}KB, which exceeds Firebase's 1MB limit.\n\nPlease:\n• Remove some photos\n• Shorten your text\n• Try again`);
+        return;
+      }
+      
+      // Handle Firebase mode
+      if (isFirebaseUser()) {
+        console.log('Saving reflection for Firebase user');
+        
+        if (editingIndex !== null && reflections[editingIndex]) {
+          // Update existing reflection - preserve original date and createdAt
+          console.log('📝 Updating existing reflection');
+          const updateData = {
+            userId: getCurrentUserId(),
+            title,
+            reflection,
+            date, // Keep the original date from the form
+            images: Array.isArray(currentImages) ? currentImages.slice() : [],
+            image: (Array.isArray(currentImages) && currentImages[0]) ? currentImages[0] : '',
+            // Don't update createdAt - preserve original creation time
+          };
+          
+          await db.collection('reflections').doc(reflections[editingIndex].id).update(updateData);
+          trackDatabaseOperation('writes');
+          reflections[editingIndex] = { ...reflections[editingIndex], ...updateData };
+          console.log('✅ Reflection updated successfully');
+          
+          // Reload reflections to ensure proper sorting (newest on top)
+          await loadReflections();
+        } else {
+          // Add new reflection
+          console.log('📝 Adding new reflection');
+        const reflectionData = {
+          userId: getCurrentUserId(),
+          title,
+          reflection,
+          date,
+            images: Array.isArray(currentImages) ? currentImages.slice() : [],
+            image: (Array.isArray(currentImages) && currentImages[0]) ? currentImages[0] : '',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        
+            const docRef = await db.collection('reflections').add(reflectionData);
+          trackDatabaseOperation('writes');
+          console.log('💾 Adding new reflection to Firebase array (unshift)');
+          console.log('💾 Reflections count before Firebase unshift:', reflections.length);
+            reflections.unshift({ id: docRef.id, ...reflectionData });
+          console.log('💾 Reflections count after Firebase unshift:', reflections.length);
+          console.log('✅ Reflection added successfully with ID:', docRef.id);
+        }
+        
+        try {
+          // Disable save button during save process
+          const saveButton = document.getElementById('save');
+          saveButton.disabled = true;
+          saveButton.textContent = 'Saving...';
+          
+          // Firebase-only saving (no localStorage fallback)
+          
+          // Clear form and go back
+          currentImages = [];
+          
+          // Reset save button
+          saveButton.disabled = false;
+          saveButton.textContent = 'Save Reflection';
+          
+          // If editing an existing reflection, go back to past reflections page
+          if (editingIndex !== null) {
+            editingIndex = null;
+            goBackToPastReflections();
+          } else {
+          editingIndex = null;
+          goBack();
+          }
+          return;
+        } catch (error) {
+          console.error('Error saving to Firebase:', error);
+          console.error('Error details:', {
+            code: error.code,
+            message: error.message,
+            userId: getCurrentUserId(),
+            reflectionData: reflectionData
+          });
+          
+          // Reset save button
+          const saveButton = document.getElementById('save');
+          saveButton.disabled = false;
+          saveButton.textContent = 'Save Reflection';
+          
+          // Handle specific error types (only show quota when Firestore explicitly reports it)
+          let errorMessage = '';
+          if (error && (error.code === 'resource-exhausted' || error.code === 'permission-denied:RESOURCE_EXHAUSTED')) {
+            errorMessage = `📊 Firebase Quota Exceeded\n\nYour Firebase quota has been reached.\n\n✅ Your journal has been saved locally and will sync when quota resets.`;
+          } else if (error.code === 'permission-denied') {
+            errorMessage = `🔒 Permission Denied\n\nThere's an issue with database permissions.\n\n✅ Your journal has been saved locally and will sync when fixed.`;
+          } else if (error.code === 'unavailable') {
+            errorMessage = `🌐 Service Unavailable\n\nFirebase is temporarily unavailable.\n\n✅ Your journal has been saved locally and will sync when service returns.`;
+          } else {
+            errorMessage = `⚠️ Save Error\n\nError: ${error.message}\n\n✅ Your journal has been saved locally and will sync when connection is restored.`;
+          }
+          
+          // Show user-friendly error message
+          showAlert(errorMessage);
+          
+          // Firebase-only: No localStorage fallback
+          console.log('💾 Firebase save failed, no fallback to localStorage');
+          return;
+        }
+      }
+      
+      // Fallback for non-Firebase users (should not happen in current setup)
+      console.log('No Firebase user detected, cannot save reflection');
+      alert('Please sign in with Google to save your reflections.');
+    }
+
+
+    function showEntryScreen(index = null) {
+      // No authentication required - allow everyone to create reflections
+      document.getElementById('main-screen').classList.add('hidden');
+      document.getElementById('entry-screen').classList.remove('hidden');
+      document.getElementById('history-screen').classList.add('hidden');
+      document.getElementById('options-menu').style.display = 'none';
+      
+      // Hide the back button when going to entry screen
+      document.getElementById('back-to-inspire-btn').style.display = 'none';
+      document.getElementById('title').value = '';
+      document.getElementById('reflection').value = '';
+      document.getElementById('image-input').value = '';
+      document.getElementById('image-preview-container').style.display = 'none';
+      const thumbs = document.getElementById('image-thumbs');
+      if (thumbs) thumbs.innerHTML = '';
+      currentImages = [];
+      editingIndex = index;
+      if (index !== null && reflections[index]) {
+        // Editing existing reflection - preserve original date
+        document.getElementById('title').value = reflections[index].title;
+        document.getElementById('reflection').value = reflections[index].reflection;
+        
+        // Set the original date from the reflection
+        const originalDate = reflections[index].date;
+        if (originalDate) {
+          document.getElementById('entry-date').textContent = originalDate;
+        }
+        
+          const container = document.getElementById('image-preview-container');
+          const loading = document.getElementById('image-loading');
+        const thumbs = document.getElementById('image-thumbs');
+          
+        const imagesArray = reflections[index].images && Array.isArray(reflections[index].images)
+          ? reflections[index].images
+          : (reflections[index].image ? [reflections[index].image] : []);
+        if (imagesArray.length > 0) {
+          container.style.display = 'block';
+          loading.style.display = 'none';
+          thumbs.innerHTML = '';
+          currentImages = imagesArray.slice();
+          imagesArray.forEach((src, i) => {
+            const wrap = document.createElement('div');
+            wrap.style.position = 'relative';
+            const img = document.createElement('img');
+            img.src = src;
+            img.className = 'preview';
+            img.style.width = '100%';
+            img.style.height = 'auto';
+            img.onclick = () => openImageModal(src, 'Preview image');
+            const rm = document.createElement('button');
+            rm.className = 'button';
+            rm.textContent = '×';
+            rm.style.position = 'absolute';
+            rm.style.top = '4px';
+            rm.style.right = '4px';
+            rm.style.padding = '2px 6px';
+            rm.onclick = () => removeImageAt(i);
+            wrap.appendChild(img);
+            wrap.appendChild(rm);
+            thumbs.appendChild(wrap);
+          });
+        }
+      } else {
+        // Creating new reflection - set current date
+        const now = new Date();
+        const entryOptions = {
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        };
+        const formattedDate = now.toLocaleDateString('en-US', entryOptions);
+        document.getElementById('entry-date').textContent = formattedDate;
+        // Show a random question every time the user opens Start Journaling
+        newQuestion();
+      }
+      // Ensure save button is properly enabled/disabled
+      checkSaveEnabled();
+      document.getElementById('start-voice').disabled = false;
+      newQuestion();
+      updateDateTime();
+    }
+
+    function goBack(showWelcome = false) {
+      if (recognition) recognition.stop();
+      document.getElementById('entry-screen').classList.add('hidden');
+      document.getElementById('history-screen').classList.add('hidden');
+      document.getElementById('options-menu').style.display = 'none';
+      document.getElementById('main-screen').classList.remove('hidden');
+      editingIndex = null;
+      
+      // Hide the back button when returning to main screen
+      document.getElementById('back-to-inspire-btn').style.display = 'none';
+      
+      // Show welcome message if user just signed up
+      if (showWelcome && user) {
+        const welcomeMessage = document.getElementById('welcome-message');
+        welcomeMessage.textContent = 'Welcome! Your account has been created and you\'re now logged in.';
+        welcomeMessage.style.display = 'block';
+        
+        // Hide welcome message after 5 seconds
+        setTimeout(() => {
+          welcomeMessage.style.display = 'none';
+        }, 5000);
+      }
+    }
+    
+    function goBackToInspire() {
+      // This function is called from the back button on main screen
+      // It's essentially the same as goBack() but more explicit
+      goBack();
+    }
+    
+    function goBackToPastReflections() {
+      // Go back to past reflections page after saving
+      document.getElementById('entry-screen').classList.add('hidden');
+      document.getElementById('main-screen').classList.add('hidden');
+      document.getElementById('history-screen').classList.remove('hidden');
+      document.getElementById('options-menu').style.display = 'none';
+      
+      // Show the back button on main screen when viewing history
+      document.getElementById('back-to-inspire-btn').style.display = 'block';
+      
+      // Reset editing state
+      editingIndex = null;
+      
+      // Refresh the history display
+      refreshHistoryDisplay();
+
+      // Scroll to top to show newest entry
+      try {
+        const list = document.getElementById('history-list');
+        const screen = document.getElementById('history-screen');
+        if (list) list.scrollTop = 0;
+        if (screen) screen.scrollTop = 0;
+        if (typeof window !== 'undefined' && window.scrollTo) {
+          window.scrollTo({ top: 0, behavior: 'auto' });
+        }
+        requestAnimationFrame(() => {
+          const firstItem = list && list.querySelector('.history-item');
+          if (firstItem && typeof firstItem.scrollIntoView === 'function') {
+            firstItem.scrollIntoView({ behavior: 'auto', block: 'start' });
+          }
+        });
+      } catch (e) {
+        // non-critical
+      }
+    }
+    
+    function goToHome() {
+      // Navigate to home page from anywhere in the app
+      document.getElementById('entry-screen').classList.add('hidden');
+      document.getElementById('history-screen').classList.add('hidden');
+      document.getElementById('options-menu').style.display = 'none';
+      document.getElementById('main-screen').classList.remove('hidden');
+      
+      // Hide the back button when going to home
+      document.getElementById('back-to-inspire-btn').style.display = 'none';
+      
+      // Reset any editing state
+      editingIndex = null;
+    }
+
+    async function showHistory() {
+      // No authentication required - allow everyone to view reflections
+      document.getElementById('main-screen').classList.add('hidden');
+      document.getElementById('entry-screen').classList.add('hidden');
+      document.getElementById('history-screen').classList.remove('hidden');
+      document.getElementById('options-menu').style.display = 'none';
+      
+      // Show the back button on main screen when viewing history
+      document.getElementById('back-to-inspire-btn').style.display = 'block';
+      
+      await loadReflections();
+      refreshHistoryDisplay();
+
+      // Ensure the newest (top) item is visible without manual scrolling
+      try {
+        const list = document.getElementById('history-list');
+        const screen = document.getElementById('history-screen');
+        if (list) list.scrollTop = 0;
+        if (screen) screen.scrollTop = 0;
+        if (typeof window !== 'undefined' && window.scrollTo) {
+          window.scrollTo({ top: 0, behavior: 'auto' });
+        }
+        // Focus first item if present
+        requestAnimationFrame(() => {
+          const firstItem = list && list.querySelector('.history-item');
+          if (firstItem && typeof firstItem.scrollIntoView === 'function') {
+            firstItem.scrollIntoView({ behavior: 'auto', block: 'start' });
+          }
+        });
+      } catch (e) {
+        // non-critical
+      }
+    }
+
+    function editReflection(index) {
+      showEntryScreen(index);
+    }
+
+    function reviewReflection(index) {
+      alert(`Title: ${reflections[index].title}\n\nReflection: ${reflections[index].reflection}\n\nDate: ${reflections[index].date}`);
+    }
+
+    async function removeImageFromReflection(index) {
+      try {
+        const item = reflections[index];
+        if (!item) return;
+
+        if (!confirm('Remove the image from this journal? This cannot be undone.')) return;
+
+        item.image = '';
+        item.images = [];
+
+        try {
+          const mappingStr = localStorage.getItem('image_backup_mapping');
+          if (mappingStr) {
+            const mapping = JSON.parse(mappingStr);
+            const backupInfo = mapping[index];
+            if (backupInfo) {
+              const imageKey = typeof backupInfo === 'string' ? backupInfo : backupInfo.key;
+              if (imageKey) {
+                localStorage.removeItem(imageKey);
+              }
+              delete mapping[index];
+              localStorage.setItem('image_backup_mapping', JSON.stringify(mapping));
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to remove image backup:', e);
+        }
+
+        if (!currentUser || !currentUser.isFirebase) {
+          saveReflectionsToLocalStorageSafely();
+          refreshHistoryDisplay();
+          return;
+        }
+
+        try {
+          if (item.id) {
+            await db.collection('reflections').doc(item.id).update({ image: '', images: [] });
+            trackDatabaseOperation('writes');
+          }
+        } catch (e) {
+          console.error('Failed to update Firebase image removal:', e);
+          alert('Could not update cloud copy right now. The image was removed locally and will sync later.');
+        }
+
+        await loadReflections();
+        refreshHistoryDisplay();
+        alert('Image removed from this journal.');
+      } catch (error) {
+        console.error('Error removing image:', error);
+        alert('Failed to remove image. Please try again.');
+      }
+    }
+
+    function debugReflections() {
+      console.log('=== DEBUG REFLECTIONS ===');
+      console.log('Reflections array:', reflections);
+      console.log('Reflections length:', reflections.length);
+      console.log('localStorage reflections:', localStorage.getItem('reflections'));
+      
+      // Show detailed info about each reflection
+      let debugInfo = `Total reflections: ${reflections.length}\n\n`;
+      reflections.forEach((reflection, index) => {
+        const date = reflection.createdAt ? 
+          (reflection.createdAt.toDate ? reflection.createdAt.toDate() : new Date(reflection.createdAt)) :
+          (reflection.date ? new Date(reflection.date) : 'No date');
+        debugInfo += `${index + 1}. "${reflection.title || 'Untitled'}" - ${date}\n`;
+      });
+      
+      debugInfo += `\nCheck console for full details.`;
+      alert(debugInfo);
+    }
+
+    function checkLocalStorage() {
+      console.log('=== LOCAL STORAGE CHECK ===');
+      
+      const reflections = localStorage.getItem('reflections');
+      const backup = localStorage.getItem('reflections_backup');
+      
+      console.log('Main reflections:', reflections);
+      console.log('Backup reflections:', backup);
+      
+      let storageInfo = 'LocalStorage Contents:\n\n';
+      
+      if (reflections) {
+        try {
+          const parsed = JSON.parse(reflections);
+          storageInfo += `Main storage: ${Array.isArray(parsed) ? parsed.length : 'Not an array'} items\n`;
+          if (Array.isArray(parsed)) {
+            parsed.forEach((item, index) => {
+              const date = item.createdAt || item.date || 'No date';
+              storageInfo += `  ${index + 1}. "${item.title || 'Untitled'}" - ${date}\n`;
+            });
+          }
+        } catch (e) {
+          storageInfo += `Main storage: Error parsing - ${e.message}\n`;
+        }
+            } else {
+        storageInfo += 'Main storage: Empty\n';
+      }
+      
+      if (backup) {
+        try {
+          const parsed = JSON.parse(backup);
+          storageInfo += `\nBackup storage: ${parsed.reflections ? parsed.reflections.length : 'No reflections array'} items\n`;
+          if (parsed.reflections && Array.isArray(parsed.reflections)) {
+            parsed.reflections.forEach((item, index) => {
+              const date = item.createdAt || item.date || 'No date';
+              storageInfo += `  ${index + 1}. "${item.title || 'Untitled'}" - ${date}\n`;
+            });
+          }
+        } catch (e) {
+          storageInfo += `\nBackup storage: Error parsing - ${e.message}\n`;
+        }
+            } else {
+        storageInfo += '\nBackup storage: Empty\n';
+      }
+      
+      alert(storageInfo);
+    }
+
+    function clearOldImages() {
+      if (!reflections || reflections.length === 0) {
+        alert('No journals to process.');
+        return;
+      }
+      
+      let imagesCleared = 0;
+      let spaceSaved = 0;
+      
+      // Clear images from all but the 3 most recent journals
+      for (let i = 3; i < reflections.length; i++) {
+        if (reflections[i] && reflections[i].image && reflections[i].image.length > 0) {
+          spaceSaved += reflections[i].image.length;
+          reflections[i] = { ...reflections[i], image: '' };
+          imagesCleared++;
+        }
+      }
+      
+      if (imagesCleared > 0) {
+        try {
+          saveReflectionsToLocalStorageSafely();
+          const spaceSavedKB = Math.round(spaceSaved / 1024);
+          alert(`✅ Cleared ${imagesCleared} old images\n\nSaved approximately ${spaceSavedKB} KB of storage space.\n\nYour journals are preserved, only images were removed.`);
+        } catch (e) {
+          alert(`❌ Error saving changes: ${e.message}`);
+        }
+            } else {
+        alert('No old images found to clear.\n\nOnly the 3 most recent journals keep their images.');
+      }
+    }
+
+    function exportJournals() {
+      if (!reflections || reflections.length === 0) {
+        alert('No journals to export.');
+        return;
+      }
+      
+      // Create export data
+      const exportData = {
+        exportDate: new Date().toISOString(),
+        totalJournals: reflections.length,
+        journals: reflections.map((journal, index) => ({
+          number: index + 1,
+          title: journal.title || 'Untitled',
+          content: journal.reflection || '',
+          date: journal.date || journal.createdAt || 'No date',
+          hasImage: !!(journal.image && journal.image.length > 0),
+          image: journal.image || null // Include the actual image data
+        }))
+      };
+      
+      // Create downloadable file
+      const dataStr = JSON.stringify(exportData, null, 2);
+      const dataBlob = new Blob([dataStr], {type: 'application/json'});
+      const url = URL.createObjectURL(dataBlob);
+      
+      // Create download link
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `my-journals-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      alert(`✅ Exported ${reflections.length} journals\n\nFile saved as: ${link.download}\n\nYou can now safely clear old journals to free up space.`);
+    }
+
+    function aggressiveCleanup() {
+      if (!reflections || reflections.length === 0) {
+        alert('No journals to process.');
+          return;
+        }
+        
+      const originalCount = reflections.length;
+      let spaceSaved = 0;
+      let imagesCleared = 0;
+      
+      // Clear ALL images from journals older than the 2 most recent
+      for (let i = 2; i < reflections.length; i++) {
+        if (reflections[i] && reflections[i].image && reflections[i].image.length > 0) {
+          spaceSaved += reflections[i].image.length;
+          reflections[i] = { ...reflections[i], image: '' };
+          imagesCleared++;
+        }
+      }
+      
+      // Also clear any other localStorage data that might be taking space
+      try {
+        // Clear backup if it exists (we'll recreate it)
+        localStorage.removeItem('reflections_backup');
+        
+        // Clear any other app data
+        const keysToCheck = ['lastQuotaError', 'dailyUsage', 'failedDeletions'];
+        keysToCheck.forEach(key => {
+          if (localStorage.getItem(key)) {
+            localStorage.removeItem(key);
+          }
+        });
+        
+        // Save the cleaned reflections
+        saveReflectionsToLocalStorageSafely();
+        
+        const spaceSavedKB = Math.round(spaceSaved / 1024);
+        alert(`✅ Aggressive cleanup completed!\n\n• Cleared ${imagesCleared} images\n• Removed backup data\n• Cleared app cache\n• Saved ~${spaceSavedKB} KB\n\nYour ${originalCount} journals are preserved with only the 2 most recent keeping their images.`);
+        
+      } catch (e) {
+        alert(`❌ Error during cleanup: ${e.message}\n\nTry exporting your journals first as a backup.`);
+      }
+    }
+
+    function restoreFromBackup() {
+      const backupKeys = [];
+      
+      // Find all available backups
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('reflections_backup_') || key === 'reflections_backup')) {
+          backupKeys.push(key);
+        }
+      }
+      
+      if (backupKeys.length === 0) {
+        alert('No backups found in localStorage.');
+        return;
+      }
+      
+      // Show available backups
+      let backupInfo = 'Available Backups:\n\n';
+      backupKeys.forEach((key, index) => {
+        try {
+          const backup = localStorage.getItem(key);
+          const parsed = JSON.parse(backup);
+          const count = parsed.reflections ? parsed.reflections.length : 0;
+          const date = parsed.timestamp ? new Date(parsed.timestamp).toLocaleString() : 'Unknown date';
+          backupInfo += `${index + 1}. ${key} (${count} journals, ${date})\n`;
+        } catch (e) {
+          backupInfo += `${index + 1}. ${key} (corrupted)\n`;
+        }
+      });
+      
+      const choice = prompt(backupInfo + '\nEnter the number of the backup to restore (or 0 to cancel):');
+      const choiceNum = parseInt(choice);
+      
+      if (choiceNum === 0 || isNaN(choiceNum) || choiceNum < 1 || choiceNum > backupKeys.length) {
+        return;
+      }
+      
+      const selectedKey = backupKeys[choiceNum - 1];
+      try {
+        const backup = localStorage.getItem(selectedKey);
+        const parsed = JSON.parse(backup);
+        
+        if (parsed && Array.isArray(parsed.reflections)) {
+          reflections = parsed.reflections;
+          saveReflectionsToLocalStorageSafely();
+          alert(`✅ Restored ${reflections.length} journals from backup: ${selectedKey}\n\nYour journals have been restored successfully!`);
+        refreshHistoryDisplay();
+        } else {
+          alert('❌ Selected backup is corrupted or empty.');
+        }
+      } catch (e) {
+        alert(`❌ Error restoring backup: ${e.message}`);
+      }
+    }
+
+    // Proactive storage monitoring
+    function checkStorageHealth() {
+      // If user is signed in to Firebase, don't check localStorage quota
+      if (currentUser && currentUser.isFirebase) {
+        console.log('User is signed in to Firebase, skipping localStorage quota check');
+        return 0; // No quota issues for Firebase users
+      }
+      
+      try {
+        // Test if we can still write to localStorage
+        const testData = 'storage_test_' + Date.now();
+        localStorage.setItem(testData, 'test');
+        localStorage.removeItem(testData);
+        
+        // Estimate current storage usage
+        let totalSize = 0;
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key) {
+            totalSize += localStorage.getItem(key).length;
+          }
+        }
+        
+        const sizeKB = Math.round(totalSize / 1024);
+        console.log(`Storage health check: ${sizeKB} KB used`);
+        
+        // If we're using more than 4MB, warn the user
+        if (sizeKB > 4000) {
+          console.warn('Storage usage is high:', sizeKB, 'KB');
+          if (sizeKB > 5000) {
+            alert(`⚠️ Storage Warning\n\nYour browser storage is getting full (${sizeKB} KB used).\n\nTo prevent data loss:\n• Export your journals\n• Clear old images\n• Sign in to sync to cloud storage`);
+          }
+        }
+        
+        return sizeKB;
+      } catch (e) {
+        console.error('Storage health check failed:', e);
+        alert(`🚨 Storage Error\n\nUnable to write to browser storage. This may cause data loss.\n\nPlease:\n1. Export your journals immediately\n2. Clear browser cache\n3. Sign in to sync to cloud storage`);
+        return -1;
+      }
+    }
+
+    function smartImageManagement() {
+      if (!reflections || reflections.length === 0) {
+        alert('No journals to process.');
+        return;
+      }
+      
+      let totalImages = 0;
+      let largeImages = 0;
+      let totalImageSize = 0;
+      let compressedCount = 0;
+      
+      // Analyze current images
+      reflections.forEach((reflection, index) => {
+        if (reflection.image && reflection.image.length > 0) {
+          totalImages++;
+          totalImageSize += reflection.image.length;
+          if (reflection.image.length > 100000) { // >100KB
+            largeImages++;
+          }
+        }
+      });
+      
+      const totalSizeMB = Math.round(totalImageSize / (1024 * 1024) * 100) / 100;
+      
+      if (totalImages === 0) {
+        alert('No images found in your journals.');
+        return;
+      }
+      
+      const action = confirm(`📸 Image Analysis:\n\n• Total images: ${totalImages}\n• Large images (>100KB): ${largeImages}\n• Total image size: ${totalSizeMB} MB\n\nWould you like to:\n• Compress large images (keeps all images, reduces size)\n• Cancel (keep everything as is)`);
+      
+      if (action) {
+        // Compress large images
+        reflections.forEach((reflection, index) => {
+          if (reflection.image && reflection.image.length > 100000) {
+            try {
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+              const img = new Image();
+              
+              img.onload = function() {
+                // Reduce size by 60% and quality to 80%
+                canvas.width = img.width * 0.6;
+                canvas.height = img.height * 0.6;
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                
+                const compressedImage = canvas.toDataURL('image/jpeg', 0.8);
+                const originalSize = reflection.image.length;
+                const newSize = compressedImage.length;
+                const saved = Math.round((originalSize - newSize) / 1024);
+                
+                reflection.image = compressedImage;
+                compressedCount++;
+                
+                console.log(`Compressed image for "${reflection.title}": saved ${saved} KB`);
+              };
+              
+              img.src = reflection.image;
+            } catch (e) {
+              console.warn(`Failed to compress image for reflection ${index}:`, e);
+            }
+          }
+        });
+        
+        // Save the compressed reflections
+        try {
+          saveReflectionsToLocalStorageSafely();
+          alert(`✅ Smart Image Management Complete!\n\n• Compressed ${compressedCount} large images\n• All images preserved\n• Reduced storage usage\n• Images are now optimized for better performance`);
+        } catch (e) {
+          alert(`❌ Error saving compressed images: ${e.message}`);
+        }
+      }
+    }
+
+    function clearBrowserCache() {
+      try {
+        // Clear localStorage
+        localStorage.clear();
+        // Clear sessionStorage
+        sessionStorage.clear();
+        console.log('Browser cache cleared');
+        return true;
+      } catch (err) {
+        console.error('Error clearing cache:', err);
+        return false;
+      }
+    }
+
+
+    function refreshHistoryDisplay() {
+      console.log('Refreshing history display with', reflections.length, 'reflections');
+      console.log('Reflections array:', reflections);
+      const list = document.getElementById('history-list');
+      
+      if (!list) {
+        console.error('History list element not found!');
+        return;
+      }
+      
+      list.innerHTML = '';
+
+      // Try to restore images from backups if they're missing
+      let restoredImages = 0;
+      reflections.forEach((reflection, index) => {
+        if (!reflection.image || reflection.image.length === 0) {
+          // Try to restore from image backups
+          const mapping = localStorage.getItem('image_backup_mapping');
+          if (mapping) {
+            try {
+              const imageBackups = JSON.parse(mapping);
+              const backupInfo = imageBackups[index];
+              if (backupInfo) {
+                // Handle both old format (string) and new format (object)
+                const imageKey = typeof backupInfo === 'string' ? backupInfo : backupInfo.key;
+                const imageData = localStorage.getItem(imageKey);
+                if (imageData) {
+                  reflection.image = imageData;
+                  restoredImages++;
+                  console.log(`Restored missing image for reflection ${index}: ${reflection.title}`);
+                }
+              }
+            } catch (e) {
+              console.warn(`Failed to restore image for reflection ${index}:`, e);
+            }
+          }
+        }
+      });
+      
+      if (restoredImages > 0) {
+        console.log(`Restored ${restoredImages} missing images from backups`);
+        // Save the restored reflections
+        saveReflectionsToLocalStorageSafely();
+      }
+      
+      if (!reflections || reflections.length === 0) {
+        list.innerHTML = '<p>No reflections yet. Start journaling to see them here!</p>';
+        console.log('No reflections to display');
+        return;
+      }
+      
+      // Ensure newest reflections are shown first while preserving original indices
+      const getItemTime = (entry) => {
+        if (!entry) return 0;
+        // Firestore Timestamp or ISO/number
+        if (entry.createdAt) {
+          const d = entry.createdAt.toDate ? entry.createdAt.toDate() : new Date(entry.createdAt);
+          const t = d && typeof d.getTime === 'function' ? d.getTime() : NaN;
+          if (!isNaN(t)) return t;
+        }
+        // Common numeric fields
+        const numericFields = ['timestamp', 'createdAtMs', 'createdAtMillis', 'created_at_ms'];
+        for (const key of numericFields) {
+          if (entry[key] && !isNaN(Number(entry[key]))) return Number(entry[key]);
+        }
+        // Parse human-readable date strings like "Monday, September 15, 2025 at 01:59 PM"
+        if (entry.date && typeof entry.date === 'string') {
+          const raw = entry.date.trim();
+          const tryParse = (s) => {
+            const d = new Date(s);
+            return isNaN(d.getTime()) ? NaN : d.getTime();
+          };
+          // 1) Direct parse
+          let t = tryParse(raw);
+          if (!isNaN(t)) return t;
+          // 2) Remove weekday prefix
+          t = tryParse(raw.replace(/^[A-Za-z]+,\s+/, ''));
+          if (!isNaN(t)) return t;
+          // 3) Replace ' at ' with space
+          t = tryParse(raw.replace(/\sat\s/i, ' '));
+          if (!isNaN(t)) return t;
+          // 4) Remove weekday and replace ' at '
+          const noWeekday = raw.replace(/^[A-Za-z]+,\s+/, '');
+          t = tryParse(noWeekday.replace(/\sat\s/i, ' '));
+          if (!isNaN(t)) return t;
+        }
+        return 0;
+      };
+
+      const itemsWithOriginalIndex = reflections.map((it, idx) => ({ item: it, originalIndex: idx }));
+      itemsWithOriginalIndex.sort((a, b) => getItemTime(b.item) - getItemTime(a.item));
+
+      itemsWithOriginalIndex.forEach(({ item, originalIndex }) => {
+        console.log('Creating display for reflection', originalIndex, ':', item.title);
+        
+        // Format the date and time properly
+        let displayDate = 'No date';
+        if (item.createdAt) {
+          // Handle Firebase timestamp
+          const date = item.createdAt.toDate ? item.createdAt.toDate() : new Date(item.createdAt);
+          displayDate = date.toLocaleString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+          });
+        } else if (item.date) {
+          // Fallback to the date field
+          displayDate = item.date;
+        }
+        
+        // Get all images (from images array or fallback to single image)
+        const allImages = item.images && Array.isArray(item.images) && item.images.length > 0 
+          ? item.images 
+          : (item.image ? [item.image] : []);
+        
+        // Create images HTML
+        const imagesHtml = allImages.length > 0 
+          ? `<div style="display: flex; flex-wrap: wrap; gap: 10px; margin: 15px 0;">
+               ${allImages.map(img => `<img src="${img}" style="max-width: 120px; max-height: 120px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); background: transparent !important; object-fit: cover; cursor: pointer; transition: transform 0.2s ease;" onclick="this.style.transform = this.style.transform === 'scale(1.1)' ? 'scale(1)' : 'scale(1.1)'">`).join('')}
+             </div>`
+          : '';
+        
+        // Format reflection text to preserve paragraph breaks
+        const reflectionText = item.reflection || 'No content';
+        const formattedText = reflectionText.replace(/\n/g, '<br>');
+        
+        const div = document.createElement('div');
+        div.className = 'history-item';
+        div.innerHTML = `
+          <h3>${item.title || 'Untitled'}</h3>
+          <div>${formattedText}</div>
+          <small style="color: var(--text-muted); font-size: 0.85rem; margin-top: 8px; display: block;">${displayDate}</small>
+          ${imagesHtml}
+          <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+            <div class="kebab-container">
+              <button class="kebab-button" onclick="toggleKebabMenu(event, ${originalIndex})" aria-label="More options">⋯</button>
+              <div class="kebab-dropdown" id="kebab-menu-${originalIndex}">
+                <button class="kebab-item" onclick="editReflection(${originalIndex}); closeAllKebabMenus()">Edit</button>
+                <button class="kebab-item" onclick="deleteReflection(${originalIndex}); closeAllKebabMenus()">Delete</button>
+              </div>
+            </div>
+          </div>
+        `;
+        list.appendChild(div);
+      });
+      
+      console.log('History display refreshed with', reflections.length, 'items');
+
+      // Ensure the user sees the newest entries immediately
+      try {
+        list.scrollTop = 0;
+        if (typeof window !== 'undefined' && window.scrollTo) {
+          window.scrollTo({ top: 0, behavior: 'auto' });
+        }
+      } catch (e) {
+        // Non-critical if scrolling fails
+      }
+    }
+
+    function closeAllKebabMenus() {
+      document.querySelectorAll('.kebab-dropdown').forEach(menu => {
+        menu.style.display = 'none';
+      });
+    }
+
+    function toggleKebabMenu(event, index) {
+      event.stopPropagation();
+      const id = `kebab-menu-${index}`;
+      const menu = document.getElementById(id);
+      if (!menu) return;
+      const isOpen = menu.style.display === 'flex';
+      closeAllKebabMenus();
+      menu.style.display = isOpen ? 'none' : 'flex';
+    }
+
+    // Close kebab menus on outside click
+    document.addEventListener('click', function() {
+      closeAllKebabMenus();
+    });
+
+    async function deleteReflection(index) {
+      console.log('=== DELETE FUNCTION CALLED ===');
+      console.log('Delete function called with index:', index);
+      console.log('Index type:', typeof index);
+      console.log('Current reflections array length:', reflections ? reflections.length : 'undefined');
+      console.log('Current reflections array:', reflections);
+      
+      // Convert index to number if it's a string
+      if (typeof index === 'string') {
+        index = parseInt(index, 10);
+        console.log('Converted index to number:', index);
+      }
+      
+      // Ensure reflections array is initialized
+      if (!reflections) {
+        console.error('Reflections array is not initialized');
+        try {
+          await loadReflections();
+          console.log('Reloaded reflections, new length:', reflections.length);
+        } catch (loadErr) {
+          console.error('Failed to reload reflections:', loadErr);
+          alert('Failed to load reflections. Please refresh the page and try again.');
+          return;
+        }
+      }
+      
+      if (!reflections || reflections.length === 0) {
+        console.error('No reflections found');
+        alert('No reflections found. Please refresh the page and try again.');
+        return;
+      }
+      
+      if (index < 0 || index >= reflections.length) {
+        console.error('Invalid index:', index, 'for array length:', reflections.length);
+        alert('Invalid reflection index. Please refresh the page and try again.');
+        return;
+      }
+      
+      if (!reflections[index]) {
+        console.error('Reflection not found at index:', index);
+        alert('Reflection not found. Please refresh the page and try again.');
+        return;
+      }
+      
+      console.log('About to show confirmation dialog');
+      if (confirm('Are you sure you want to delete this reflection?')) {
+        console.log('User confirmed deletion');
+        try {
+          // Always perform local deletion first
+          const deletedReflection = reflections.splice(index, 1)[0];
+          console.log('Deleted reflection:', deletedReflection);
+          console.log('Remaining reflections:', reflections.length);
+          
+          // Update localStorage immediately
+          try {
+            saveReflectionsToLocalStorageSafely();
+            console.log('Updated reflections in localStorage');
+          } catch (localErr) {
+            console.error('Error updating localStorage:', localErr);
+            throw new Error('Failed to save changes locally: ' + localErr.message);
+          }
+          
+          // Try database deletion if the reflection has an ID and user is logged in
+          if (deletedReflection.id && currentUser && currentUser.isFirebase) {
+            try {
+              console.log('Attempting Firebase deletion for ID:', deletedReflection.id);
+              await db.collection('reflections').doc(deletedReflection.id).delete();
+              trackDatabaseOperation('deletes');
+              console.log('Firebase deletion successful');
+            } catch (dbErr) {
+              console.error('Firebase deletion failed:', dbErr);
+              // Store the failed deletion for retry
+              const failedDeletions = JSON.parse(localStorage.getItem('failedDeletions') || '[]');
+              failedDeletions.push({
+                id: deletedReflection.id,
+                timestamp: Date.now(),
+                retryCount: 0
+              });
+              localStorage.setItem('failedDeletions', JSON.stringify(failedDeletions));
+              
+              // Show retry option
+              if (confirm('Reflection deleted locally but database sync failed. Would you like to retry the sync now?')) {
+                await retryFailedDeletions();
+              } else {
+                alert('Reflection deleted locally. You can retry the sync later or it will be removed when you refresh.');
+              }
+            }
+          } else {
+            console.log('No database ID found or user not logged in, local deletion only');
+          }
+          
+          // Refresh the history display without reloading from storage
+          try {
+            console.log('Calling refreshHistoryDisplay with', reflections.length, 'reflections');
+            refreshHistoryDisplay();
+            alert('Reflection deleted successfully!');
+          } catch (displayErr) {
+            console.error('Error refreshing display:', displayErr);
+            throw new Error('Failed to refresh display: ' + displayErr.message);
+          }
+          
+        } catch (err) {
+          console.error('Unexpected error deleting reflection:', err);
+          console.error('Error details:', err.message, err.stack);
+          alert(`Error deleting reflection: ${err.message}. Please check the console for details.`);
+        }
+      }
+    }
+
+    // Retry failed deletions
+    async function retryFailedDeletions() {
+      try {
+        const failedDeletions = JSON.parse(localStorage.getItem('failedDeletions') || '[]');
+        if (failedDeletions.length === 0) {
+          console.log('No failed deletions to retry');
+          return;
+        }
+
+        console.log('Retrying', failedDeletions.length, 'failed deletions');
+        let successCount = 0;
+        let remainingFailures = [];
+
+        for (const failedDeletion of failedDeletions) {
+          try {
+            await db.collection('reflections').doc(failedDeletion.id).delete();
+            trackDatabaseOperation('deletes');
+            console.log('Successfully deleted ID:', failedDeletion.id);
+            successCount++;
+          } catch (err) {
+            console.error('Retry error for ID:', failedDeletion.id, err);
+            failedDeletion.retryCount = (failedDeletion.retryCount || 0) + 1;
+            if (failedDeletion.retryCount < 3) {
+              remainingFailures.push(failedDeletion);
+            }
+          }
+        }
+
+        // Update the failed deletions list
+        localStorage.setItem('failedDeletions', JSON.stringify(remainingFailures));
+
+        if (successCount > 0) {
+          alert(`Successfully synced ${successCount} deletion(s) to the database!`);
+        }
+        
+        if (remainingFailures.length > 0) {
+          console.log('Still have', remainingFailures.length, 'failed deletions');
+        } else {
+          console.log('All failed deletions have been resolved');
+        }
+
+      } catch (err) {
+        console.error('Error retrying failed deletions:', err);
+        alert('Error retrying failed deletions. Please try again later.');
+      }
+    }
+
+    // Auto-retry failed deletions on page load (only if quota allows)
+    async function autoRetryFailedDeletions() {
+      try {
+        const failedDeletions = JSON.parse(localStorage.getItem('failedDeletions') || '[]');
+        if (failedDeletions.length > 0) {
+          console.log('Found', failedDeletions.length, 'failed deletions, attempting auto-retry');
+          // Only retry if we haven't hit quota recently
+          const lastQuotaError = localStorage.getItem('lastQuotaError');
+          const now = Date.now();
+          if (!lastQuotaError || (now - parseInt(lastQuotaError)) > 3600000) { // 1 hour
+            await retryFailedDeletions();
+          } else {
+            console.log('Skipping auto-retry due to recent quota error');
+          }
+        }
+      } catch (err) {
+        console.error('Error in auto-retry:', err);
+      }
+    }
+
+    // Track database operations for quota management
+    function trackDatabaseOperation(operation) {
+      const today = new Date().toDateString();
+      const key = `${operation}_${today}`;
+      const current = parseInt(localStorage.getItem(key) || '0');
+      localStorage.setItem(key, (current + 1).toString());
+      console.log(`📊 Database ${operation}: ${current + 1} today`);
+    }
+
+    // Check and display quota status
+    function checkQuotaStatus() {
+      const lastQuotaError = localStorage.getItem('lastQuotaError');
+      const quotaStatus = document.getElementById('quota-status');
+      
+      if (lastQuotaError) {
+        const now = Date.now();
+        const timeSinceError = now - parseInt(lastQuotaError);
+        const hoursSinceError = Math.floor(timeSinceError / 3600000);
+        
+        if (hoursSinceError < 24) {
+          quotaStatus.textContent = `📊 Firebase quota exceeded ${hoursSinceError}h ago. Your data is saved locally and will sync when quota resets.`;
+          quotaStatus.style.display = 'block';
+        } else {
+          // Quota should have reset, hide the message
+          quotaStatus.style.display = 'none';
+          localStorage.removeItem('lastQuotaError');
+        }
+      } else {
+        quotaStatus.style.display = 'none';
+      }
+    }
+
+    // Check and display Firebase connection status
+    async function checkFirebaseStatus() {
+      const statusElement = document.getElementById('firebase-status');
+      
+      if (!currentUser || !currentUser.isFirebase) {
+        statusElement.style.display = 'none';
+        return;
+      }
+
+      try {
+        // Test Firebase connection by trying to read from Firestore
+        const userId = getCurrentUserId();
+        if (!userId) {
+          statusElement.textContent = '❌ User ID not available';
+          statusElement.style.color = '#ff6b6b';
+          return;
+        }
+        
+        const testQuery = await db.collection('reflections')
+          .where('userId', '==', userId)
+          .limit(1)
+          .get();
+        
+        const journalCount = await db.collection('reflections')
+          .where('userId', '==', userId)
+          .get();
+        
+        statusElement.innerHTML = `☁️ <strong>Cloud Storage Active</strong><br>
+        ✅ Connected to Firebase<br>
+        📝 ${journalCount.size} journals saved in cloud<br>
+        🔄 Auto-sync enabled`;
+        statusElement.style.color = 'var(--accent-primary)';
+        statusElement.style.display = 'block';
+        
+      } catch (error) {
+        console.error('Firebase status check failed:', error);
+        statusElement.innerHTML = `⚠️ <strong>Cloud Storage Issue</strong><br>
+        ❌ Firebase connection problem<br>
+        💾 Journals saved locally only<br>
+        🔄 Will sync when connection restored`;
+        statusElement.style.color = 'var(--warning-color, #ff6b6b)';
+        statusElement.style.display = 'block';
+      }
+    }
+    
+    // Function to test Firebase connection and detect upgrade status
+    async function testFirebaseConnection() {
+      try {
+        if (!db) {
+          console.log('Firebase not initialized');
+          return false;
+        }
+        
+        // Try a simple read operation to test connection
+        const testDoc = await db.collection('test').doc('connection').get();
+        console.log('Firebase connection test successful');
+        return true;
+      } catch (error) {
+        console.log('Firebase connection test failed:', error);
+        if (error.code === 'resource-exhausted') {
+          console.log('Quota still exceeded - upgrade may not be active yet');
+        }
+        return false;
+      }
+    }
+    
+    
+    // Reset user quota state function
+    function resetUserQuotaState() {
+      // Clear all quota-related localStorage
+      localStorage.removeItem('lastQuotaError');
+      localStorage.removeItem('failedDeletions');
+      
+      // Clear daily usage counters
+      const today = new Date().toDateString();
+      localStorage.removeItem(`reads_${today}`);
+      localStorage.removeItem(`writes_${today}`);
+      localStorage.removeItem(`deletes_${today}`);
+      
+      alert('✅ User quota state reset!\n\nAll quota error tracking has been cleared. Try using the app again.');
+    }
+
+    // Theme switching functions
+    function setThemeMetaColor(theme) {
+      const metaTheme = document.querySelector('meta[name="theme-color"]');
+      const tileMeta = document.querySelector('meta[name="msapplication-TileColor"]');
+      const darkColor = '#0f0f23';
+      const lightColor = '#e0f2fe';
+      const color = theme === 'sky' ? lightColor : darkColor;
+      if (metaTheme) metaTheme.setAttribute('content', color);
+      if (tileMeta) tileMeta.setAttribute('content', color);
+    }
+
+    function applySkyTheme() {
+      // Apply sky theme
+      document.documentElement.setAttribute('data-theme', 'sky');
+      document.body.classList.add('theme-sky');
+      document.body.classList.remove('theme-dark');
+      window.currentTheme = 'sky';
+      const themeToggle = document.getElementById('theme-toggle');
+      const sun = document.querySelector('.sun');
+      if (themeToggle) themeToggle.textContent = '🌙';
+      if (sun) {
+        sun.style.display = 'block';
+        sun.style.visibility = 'visible';
+        setTimeout(function() {
+          sun.style.opacity = '1';
+        }, 50);
+      }
+      setThemeMetaColor('sky');
+      
+      // AGGRESSIVE sky theme color override
+      document.body.style.setProperty('background-color', '#e0f2fe', 'important');
+      document.body.style.setProperty('background', 'linear-gradient(180deg, #e0f2fe 0%, #bae6fd 50%, #7dd3fc 100%)', 'important');
+      document.body.style.setProperty('color', '#0c4a6e', 'important');
+      document.documentElement.style.setProperty('background-color', '#e0f2fe', 'important');
+      
+      // Also override CSS variables
+      document.documentElement.style.setProperty('--bg-primary', '#e0f2fe', 'important');
+      document.documentElement.style.setProperty('--bg-secondary', '#bae6fd', 'important');
+      document.documentElement.style.setProperty('--bg-tertiary', '#7dd3fc', 'important');
+      document.documentElement.style.setProperty('--text-primary', '#0c4a6e', 'important');
+      
+      // Sky theme applied
+    }
+
+    function applyDarkTheme() {
+      // Apply dark theme
+      document.documentElement.removeAttribute('data-theme');
+      document.body.classList.add('theme-dark');
+      document.body.classList.remove('theme-sky');
+      window.currentTheme = 'dark';
+      const themeToggle = document.getElementById('theme-toggle');
+      const sun = document.querySelector('.sun');
+      if (themeToggle) themeToggle.textContent = '☀️';
+      if (sun) {
+        sun.style.opacity = '0';
+        setTimeout(function() {
+          sun.style.display = 'none';
+          sun.style.visibility = 'hidden';
+        }, 500);
+      }
+      setThemeMetaColor('dark');
+      
+      // AGGRESSIVE dark theme color override
+      document.body.style.setProperty('background-color', '#0f0f23', 'important');
+      document.body.style.setProperty('background', 'linear-gradient(180deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%)', 'important');
+      document.body.style.setProperty('color', '#ffffff', 'important');
+      document.documentElement.style.setProperty('background-color', '#0f0f23', 'important');
+      
+      // Also override any CSS variables that might be interfering
+      document.documentElement.style.setProperty('--bg-primary', '#0f0f23', 'important');
+      document.documentElement.style.setProperty('--bg-secondary', '#1a1a2e', 'important');
+      document.documentElement.style.setProperty('--bg-tertiary', '#16213e', 'important');
+      document.documentElement.style.setProperty('--text-primary', '#ffffff', 'important');
+      
+      // Dark theme applied
+    }
+
+    function toggleTheme() {
+      // Toggle theme
+      if (window.currentTheme === 'dark') {
+        // Switch to sky theme
+        applySkyTheme();
+        localStorage.setItem('theme', 'sky');
+      } else {
+        // Switch to dark theme
+        applyDarkTheme();
+        localStorage.setItem('theme', 'dark');
+      }
+    }
+
+
+    function loadTheme() {
+      // Use the theme that was already applied early
+      const initial = window.currentTheme || 'dark';
+      
+      // Load theme
+      
+      // Force reapply the theme to ensure it's properly set
+      if (initial === 'sky') {
+        applySkyTheme();
+      } else {
+        applyDarkTheme();
+      }
+      
+      // Ensure theme toggle button shows correct icon
+      setTimeout(function() {
+        const themeToggle = document.getElementById('theme-toggle');
+        if (themeToggle) {
+          themeToggle.textContent = initial === 'sky' ? '🌙' : '☀️';
+        }
+      }, 50);
+    }
+
+    function startVoiceRecognition() {
+      if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+        alert('Speech recognition is not supported in your browser. Use Chrome.');
+        return;
+      }
+      recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = 'en-US';
+      recognition.interimResults = true;
+      recognition.continuous = true;
+      recognition.onresult = (event) => {
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const res = event.results[i];
+          const chunk = res[0].transcript;
+          if (res.isFinal) {
+            appendSmartSentence(chunk);
+          }
+        }
+        checkSaveEnabled();
+      };
+      recognition.onend = () => {
+        // Voice recognition ended, user can now save
+        console.log('Voice recognition ended');
+      };
+      recognition.onerror = () => {
+        console.log('Voice recognition error');
+      };
+      recognition.start();
+    }
+
+    function stopVoiceRecognition() {
+      if (recognition) recognition.stop();
+    }
+
+    function appendSmartSentence(text) {
+      const box = document.getElementById('reflection');
+      let t = (text || '').trim();
+      if (!t) return;
+      t = t.replace(/\s+/g, ' ');
+      t = t.charAt(0).toUpperCase() + t.slice(1);
+      if (!/[.!?…]$/.test(t)) {
+        t += '.';
+      }
+      t += ' ';
+      const existing = box.value;
+      const needsSpace = existing && !/\s$/.test(existing);
+      box.value = existing + (needsSpace ? ' ' : '') + t;
+      box.selectionStart = box.selectionEnd = box.value.length;
+    }
+
+    function updatePhotoCounter() {
+      // Check if save button should be enabled when photos change
+      const currentCount = Array.isArray(currentImages) ? currentImages.length : 0;
+      const title = document.getElementById('title').value.trim();
+      const hasImages = currentCount > 0;
+      
+      if (title && hasImages) {
+        const saveButton = document.getElementById('save');
+        if (saveButton && saveButton.disabled) {
+          saveButton.disabled = false;
+          console.log('🔧 Photo update: Force-enabled save button');
+        }
+      }
+    }
+
+    function checkSaveEnabled() {
+      const canSaveResult = canSave();
+      const saveButton = document.getElementById('save');
+      
+      console.log('🔧 checkSaveEnabled called:', {
+        canSave: canSaveResult,
+        saveButtonExists: !!saveButton,
+        currentDisabled: saveButton ? saveButton.disabled : 'N/A'
+      });
+      
+      if (saveButton) {
+        saveButton.disabled = !canSaveResult;
+        console.log('🔧 Save button disabled set to:', !canSaveResult);
+      }
+      
+      updatePhotoCounter(); // Update photo counter whenever we check save status
+    }
+
+    function canSave() {
+      const title = document.getElementById('title').value.trim();
+      const reflection = document.getElementById('reflection').value.trim();
+      
+      // Simplified image check - just check if we have any images
+      const hasImage = Array.isArray(currentImages) && currentImages.length > 0;
+      
+      const canSaveResult = !!(title && (reflection || hasImage));
+      
+      // Debug logging
+      console.log('🔍 canSave check:', {
+        title: title,
+        reflection: reflection,
+        hasImage: hasImage,
+        currentImageCount: Array.isArray(currentImages) ? currentImages.length : 0,
+        currentImages: currentImages,
+        canSave: canSaveResult,
+        titleLength: title.length,
+        reflectionLength: reflection.length,
+        titleExists: !!title,
+        reflectionExists: !!reflection,
+        imageExists: hasImage
+      });
+      
+      // Can save if there's a title and either reflection text OR an image
+      return canSaveResult;
+    }
+
+    // Prevent double-saving
+    let isSaving = false;
+    
+    // Function to estimate document size for Firebase
+    function estimateDocumentSize(title, reflection, images) {
+      const baseSize = JSON.stringify({
+        title: title || '',
+        reflection: reflection || '',
+        date: new Date().toISOString(),
+        createdAt: new Date().toISOString()
+      }).length;
+      
+      const imagesSize = Array.isArray(images) ? 
+        images.reduce((total, img) => total + (img ? img.length : 0), 0) : 0;
+      
+      const totalSize = baseSize + imagesSize;
+      
+      console.log('📏 Document size estimate:', {
+        baseSize: baseSize,
+        imagesSize: imagesSize,
+        totalSize: totalSize,
+        maxAllowed: 1048576, // 1MB
+        withinLimit: totalSize < 1048576
+      });
+      
+      return totalSize;
+    }
+    
+    async function saveReflection() {
+      if (isSaving) {
+        console.log('💾 Save already in progress, ignoring duplicate click');
+        return;
+      }
+      
+      isSaving = true;
+      console.log('💾 Save button clicked!');
+      console.log('💾 Current state:', {
+        title: document.getElementById('title').value.trim(),
+        reflection: document.getElementById('reflection').value.trim(),
+        currentImages: Array.isArray(currentImages) ? currentImages.length : 0,
+        currentUser: currentUser ? 'logged in' : 'not logged in',
+        editingIndex: editingIndex,
+        reflectionsCount: reflections.length
+      });
+      
+      try {
+        await saveReflections();
+        console.log('💾 saveReflections completed successfully');
+        console.log('💾 Final reflections count:', reflections.length);
+      } catch (error) {
+        console.error('💾 Error in saveReflections:', error);
+        alert('Error saving reflection: ' + error.message);
+      } finally {
+        isSaving = false;
+      }
+    }
+    
+    // Test function to manually enable save button
+    function testSaveButton() {
+      const saveButton = document.getElementById('save');
+      if (saveButton) {
+        saveButton.disabled = false;
+        saveButton.style.cursor = 'pointer';
+        console.log('🧪 Test: Save button manually enabled');
+        console.log('🧪 Save button state:', {
+          disabled: saveButton.disabled,
+          cursor: saveButton.style.cursor,
+          onclick: saveButton.onclick
+        });
+      }
+    }
+    
+    // Force enable save button - call this from console if needed
+    function forceEnableSave() {
+      const saveButton = document.getElementById('save');
+      if (saveButton) {
+        saveButton.disabled = false;
+        saveButton.style.cursor = 'pointer';
+        saveButton.style.background = 'var(--button-gradient)';
+        console.log('🔧 Force enabled save button');
+      }
+    }
+
+    function previewImage(event) {
+      console.log('📷 Photo upload triggered');
+      console.log('Event:', event);
+      console.log('Files:', event.target.files);
+      
+      const files = Array.from(event.target.files || []);
+      const container = document.getElementById('image-preview-container');
+      const loading = document.getElementById('image-loading');
+      const thumbs = document.getElementById('image-thumbs');
+      
+      if (!files.length) {
+        console.log('❌ No file selected');
+        if (thumbs) thumbs.innerHTML = '';
+        container.style.display = 'none';
+        alert('No file selected. Please try again.');
+          return;
+        }
+        
+      // Initialize currentImages array if needed
+      if (!Array.isArray(currentImages)) currentImages = [];
+      const currentPhotoCount = currentImages.length;
+      const maxPhotos = 5; // Limit to 5 photos to stay under 1MB
+      
+      if (currentPhotoCount >= maxPhotos) {
+        showAlert(`📸 Photo Limit Reached\n\nYou can only add up to ${maxPhotos} photos per entry to stay within Firebase's size limits.\n\nCurrent photos: ${currentPhotoCount}/${maxPhotos}\n\nPlease remove a photo first if you want to add a new one.`);
+        // Clear the file input
+        event.target.value = '';
+        return;
+      }
+      
+      // Check if adding these files would exceed the limit
+      if (currentPhotoCount + files.length > maxPhotos) {
+        const remainingSlots = maxPhotos - currentPhotoCount;
+        showAlert(`📸 Photo Limit Exceeded\n\nYou can only add ${remainingSlots} more photo(s).\n\nCurrent photos: ${currentPhotoCount}/${maxPhotos}\n\nPlease select only ${remainingSlots} photo(s) or remove some existing photos first.`);
+        // Clear the file input
+        event.target.value = '';
+        return;
+      }
+        
+      console.log(`✅ ${files.length} file(s) selected (${currentPhotoCount}/${maxPhotos} photos used)`);
+      
+      // Show loading UI
+      container.style.display = 'block';
+      loading.style.display = 'block';
+      
+      // Add to existing images (don't replace)
+      if (!Array.isArray(currentImages)) currentImages = [];
+      let processed = 0;
+      
+      console.log('📷 Starting image processing:', {
+        filesToProcess: files.length,
+        currentImages: currentImages.length
+      });
+      
+      // Render existing images first
+      if (thumbs) {
+        thumbs.innerHTML = '';
+        currentImages.forEach((src, i) => {
+          const wrap = document.createElement('div');
+          wrap.style.position = 'relative';
+          const img = document.createElement('img');
+          img.src = src;
+          img.className = 'preview';
+          img.style.width = '100%';
+          img.style.height = 'auto';
+          img.onclick = () => openImageModal(src, 'Preview image');
+          const rm = document.createElement('button');
+          rm.className = 'button';
+          rm.textContent = '×';
+          rm.style.position = 'absolute';
+          rm.style.top = '4px';
+          rm.style.right = '4px';
+          rm.style.padding = '2px 6px';
+          rm.onclick = () => removeImageAt(i);
+          wrap.appendChild(img);
+          wrap.appendChild(rm);
+          thumbs.appendChild(wrap);
+        });
+      }
+      
+      files.forEach((file, fileIdx) => {
+        console.log('Selected file:', file.name, 'Type:', file.type, 'Size:', file.size, 'bytes');
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            // Compress each image before storing
+            compressImage(e.target.result, (compressedDataUrl) => {
+              currentImages.push(compressedDataUrl);
+              
+              console.log('📷 Image processed and added:', {
+                currentImagesCount: currentImages.length,
+                processed: processed + 1,
+                totalFiles: files.length
+              });
+              
+              // Render thumbnail
+              if (thumbs) {
+                const wrap = document.createElement('div');
+                wrap.style.position = 'relative';
+                const img = document.createElement('img');
+                img.src = compressedDataUrl;
+                img.className = 'preview';
+                img.style.width = '100%';
+                img.style.height = 'auto';
+                img.onclick = () => openImageModal(compressedDataUrl, 'Preview image');
+                const rm = document.createElement('button');
+                rm.className = 'button';
+                rm.textContent = '×';
+                rm.style.position = 'absolute';
+                rm.style.top = '4px';
+                rm.style.right = '4px';
+                rm.style.padding = '2px 6px';
+                const idx = currentImages.length - 1;
+                rm.onclick = () => removeImageAt(idx);
+                wrap.appendChild(img);
+                wrap.appendChild(rm);
+                thumbs.appendChild(wrap);
+              }
+              
+              processed++;
+              if (processed === files.length) {
+                loading.style.display = 'none';
+                console.log('📷 All images processed, checking save enabled:', {
+                  currentImagesCount: currentImages.length,
+                  title: document.getElementById('title').value.trim(),
+                  reflection: document.getElementById('reflection').value.trim()
+                });
+                
+                // Force update save button state
+                checkSaveEnabled();
+                
+                // Additional check to ensure save button is enabled if we have title and images
+                const title = document.getElementById('title').value.trim();
+                const hasImages = Array.isArray(currentImages) && currentImages.length > 0;
+                if (title && hasImages) {
+                  const saveButton = document.getElementById('save');
+                  saveButton.disabled = false;
+                  console.log('🔧 Force-enabled save button due to title + images');
+                }
+              }
+            });
+          } catch (error) {
+            console.error('Error processing image:', error);
+            processed++;
+            if (processed === files.length) {
+              loading.style.display = 'none';
+            }
+            alert('Error processing the file. Please try a different file.\n\nThe app supports any image format and will automatically compress large files.');
+          }
+        };
+        
+        reader.onerror = () => {
+          console.error('FileReader error:', reader.error);
+          processed++;
+          if (processed === files.length) {
+            loading.style.display = 'none';
+          }
+          alert('Failed to read the file. Please try again.');
+        };
+        
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function compressImage(dataUrl, callback) {
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // More aggressive compression for Firebase (max 800px, target 200KB per image)
+        let { width, height } = img;
+        const maxSize = 800; // Reduced from 1200
+        const targetSize = 200000; // 200KB target per image
+        
+        if (width > height) {
+          if (width > maxSize) {
+            height = (height * maxSize) / width;
+            width = maxSize;
+          }
+      } else {
+          if (height > maxSize) {
+            width = (width * maxSize) / height;
+            height = maxSize;
+          }
+        }
+        
+        // Set canvas dimensions
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw and compress
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Start with lower quality for Firebase
+        let quality = 0.6; // Reduced from 0.9
+        let compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        
+        // If still too large, reduce quality further
+        while (compressedDataUrl.length > targetSize && quality > 0.1) {
+          quality -= 0.1;
+          compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+        
+        // If still too large, reduce dimensions progressively
+        if (compressedDataUrl.length > targetSize) {
+          let scaleFactor = 0.7; // Start smaller
+          while (compressedDataUrl.length > targetSize && scaleFactor > 0.2) {
+            canvas.width = width * scaleFactor;
+            canvas.height = height * scaleFactor;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            compressedDataUrl = canvas.toDataURL('image/jpeg', 0.5); // Lower quality
+            scaleFactor -= 0.1;
+          }
+        }
+        
+        console.log('🔄 Image compressed for Firebase:', {
+          original: dataUrl.length,
+          compressed: compressedDataUrl.length,
+          reduction: ((1 - compressedDataUrl.length / dataUrl.length) * 100).toFixed(1) + '%',
+          target: targetSize
+        });
+        
+        callback(compressedDataUrl);
+      };
+      
+      img.onerror = function() {
+        console.error('Error loading image for compression');
+        callback(dataUrl); // Fallback to original
+      };
+      
+      img.src = dataUrl;
+    }
+
+    function removeAllImages() {
+      const container = document.getElementById('image-preview-container');
+      const loading = document.getElementById('image-loading');
+      const thumbs = document.getElementById('image-thumbs');
+      const galleryInput = document.getElementById('image-input');
+      const cameraInput = document.getElementById('camera-input');
+      
+      container.style.display = 'none';
+      loading.style.display = 'none';
+      if (thumbs) thumbs.innerHTML = '';
+      galleryInput.value = '';
+      cameraInput.value = '';
+      currentImages = [];
+      console.log('All images removed');
+      
+      checkSaveEnabled();
+    }
+
+    function removeImageAt(idx) {
+      if (!Array.isArray(currentImages)) currentImages = [];
+      currentImages.splice(idx, 1);
+      
+      // Re-render all thumbnails with correct indices
+      const thumbs = document.getElementById('image-thumbs');
+      if (thumbs) {
+        thumbs.innerHTML = '';
+        currentImages.forEach((src, i) => {
+          const wrap = document.createElement('div');
+          wrap.style.position = 'relative';
+          const img = document.createElement('img');
+          img.src = src;
+          img.className = 'preview';
+          img.style.width = '100%';
+          img.style.height = 'auto';
+          img.onclick = () => openImageModal(src, 'Preview image');
+          const rm = document.createElement('button');
+          rm.className = 'button';
+          rm.textContent = '×';
+          rm.style.position = 'absolute';
+          rm.style.top = '4px';
+          rm.style.right = '4px';
+          rm.style.padding = '2px 6px';
+          rm.onclick = () => removeImageAt(i);
+          wrap.appendChild(img);
+          wrap.appendChild(rm);
+          thumbs.appendChild(wrap);
+        });
+      }
+      
+      if (currentImages.length === 0) {
+        document.getElementById('image-preview-container').style.display = 'none';
+      }
+      checkSaveEnabled(); // This will also update the photo counter
+    }
+
+    function toggleOptionsMenu() {
+      console.log('Toggling options menu');
+      const menu = document.getElementById('options-menu');
+      if (!menu) {
+        console.error('Options menu element not found');
+        return;
+      }
+      
+      // Ensure buttons are visible if user is signed in
+      if (currentUser) {
+        document.getElementById('start-journaling-btn').style.display = 'block';
+        document.getElementById('past-reflections-btn').style.display = 'block';
+        document.getElementById('home-btn').style.display = 'block';
+        console.log('User is signed in, showing buttons');
+      } else {
+        document.getElementById('start-journaling-btn').style.display = 'none';
+        document.getElementById('past-reflections-btn').style.display = 'none';
+        document.getElementById('home-btn').style.display = 'none';
+        console.log('User is not signed in, hiding buttons');
+      }
+      
+      menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    }
+
+
+    function copyShareLink() {
+      let userId = localStorage.getItem('sharedUserId');
+      if (!userId) {
+        // Generate a new user ID if none exists
+        userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substring(2);
+        localStorage.setItem('sharedUserId', userId);
+      }
+      
+      const shareUrl = `${window.location.origin}${window.location.pathname}?user=${userId}`;
+      
+      // Try to copy to clipboard
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+          alert('📱 Share link copied! Open this link on your other devices to sync your journals.\n\n' + shareUrl);
+        }).catch(() => {
+          // Fallback if clipboard fails
+          prompt('Copy this link to share with your other devices:', shareUrl);
+        });
+      } else {
+        // Fallback for older browsers
+        prompt('Copy this link to share with your other devices:', shareUrl);
+      }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // Initialize auth state - Firebase only
+    async function initAuth() {
+      // This function is no longer needed since we use Firebase auth
+      // Firebase auth is handled in initFirebaseAuth()
+      console.log('Using Firebase authentication only');
+    }
+
+    // Event listeners
+    document.getElementById('title').addEventListener('input', checkSaveEnabled);
+    document.getElementById('reflection').addEventListener('input', checkSaveEnabled);
+    // Note: Save button uses onclick attribute instead of event listener to avoid double-triggering
+    // Add event listeners for both gallery and camera inputs
+    document.getElementById('image-input').addEventListener('change', previewImage);
+    document.getElementById('camera-input').addEventListener('change', previewImage);
+    
+    // Add click listeners for gallery and camera buttons
+    document.querySelector('label[for="image-input"]').addEventListener('click', function(e) {
+      e.preventDefault(); // Prevent default label behavior
+      console.log('Photos button clicked');
+      
+      // Simple approach: create a clean input and trigger it
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.style.display = 'none';
+      input.addEventListener('change', previewImage);
+      
+      // Add to DOM and trigger
+      document.body.appendChild(input);
+      input.click();
+      
+      // Clean up
+      setTimeout(() => {
+        if (document.body.contains(input)) {
+          document.body.removeChild(input);
+        }
+      }, 1000);
+    });
+    
+    document.querySelector('label[for="camera-input"]').addEventListener('click', function(e) {
+      e.preventDefault(); // Prevent default label behavior
+      console.log('Camera button clicked');
+      
+      // Ensure the camera input opens camera
+      const cameraInput = document.getElementById('camera-input');
+      cameraInput.setAttribute('capture', 'environment');
+      
+      // Trigger the camera
+      cameraInput.click();
+    });
+
+    // Handle redirect authentication result
+    async function handleRedirectResult() {
+      try {
+        const result = await auth.getRedirectResult();
+        if (result.user) {
+          console.log('✅ Redirect authentication successful');
+          currentUser = {
+            id: result.user.uid,
+            email: result.user.email,
+            name: result.user.displayName,
+            isFirebase: true
+          };
+          
+          // Show success message
+          const message = document.getElementById('auth-message');
+          message.textContent = 'Successfully signed in!';
+          message.style.color = '#4ade80';
+          message.style.display = 'block';
+          
+          // Hide auth screen and show main screen
+          setTimeout(() => {
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('main-screen').classList.remove('hidden');
+            message.style.display = 'none';
+            loadReflections();
+          }, 1500);
+        }
+      } catch (error) {
+        console.error('Redirect authentication error:', error);
+      }
+    }
+
+    // Load reflections and initialize auth on page load
+    async function initializeApp() {
+      console.log('Initializing app...');
+      
+      // Load theme first
+      loadTheme();
+      
+      // Show sun smoothly if sky theme is active
+      if (window.currentTheme === 'sky') {
+        const sun = document.querySelector('.sun');
+        if (sun) {
+          sun.style.display = 'block';
+          sun.style.visibility = 'visible';
+          setTimeout(function() {
+            sun.style.opacity = '1';
+          }, 200);
+        }
+      }
+      
+      // Theme is now working properly
+      
+      // Initialize image click handlers
+      addImageClickHandlers();
+      
+      // Try to initialize Firebase with retry
+      let firebaseInitialized = false;
+      for (let i = 0; i < 3; i++) {
+      if (initializeFirebase()) {
+          firebaseInitialized = true;
+        console.log('Firebase initialized successfully');
+        await initFirebaseAuth();
+        
+        // Check for redirect authentication result
+        await handleRedirectResult();
+          break;
+      } else {
+          console.log(`Firebase initialization attempt ${i + 1} failed, retrying...`);
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+        }
+      }
+      
+      if (!firebaseInitialized) {
+        console.log('Firebase not configured after retries, showing auth screen');
+        showAuthScreen();
+      }
+      
+      setInterval(updateDateTime, 1000);
+      updateDateTime();
+      
+      // Auto-retry any failed deletions
+      await autoRetryFailedDeletions();
+      
+      // Check quota status
+      checkQuotaStatus();
+      
+      // Check storage health
+      checkStorageHealth();
+      
+      // Initialize photo counter
+      updatePhotoCounter();
+      
+    }
+    
+    // Initialize Firebase Auth
+    async function initFirebaseAuth() {
+      try {
+        // Check for redirect result first (in case user just came back from redirect)
+        try {
+          const result = await auth.getRedirectResult();
+          if (result.user) {
+            console.log('User signed in via redirect:', result.user);
+            // The onAuthStateChanged will handle the rest
+          }
+        } catch (redirectError) {
+          console.log('No redirect result or error:', redirectError);
+        }
+        
+        // Check for existing session with error handling
+        auth.onAuthStateChanged(async (user) => {
+          if (user) {
+            // User is signed in
+            currentUser = {
+              id: user.uid,
+              email: user.email,
+              name: user.displayName,
+              photoURL: user.photoURL,
+              isFirebase: true
+            };
+            console.log('Firebase user signed in:', {
+              uid: user.uid,
+              email: user.email,
+              displayName: user.displayName
+            });
+            
+            // Simple screen change if coming from auth screen
+            const authScreen = document.getElementById('auth-screen');
+            if (authScreen && !authScreen.classList.contains('hidden')) {
+              document.getElementById('auth-screen').classList.add('hidden');
+              document.getElementById('main-screen').classList.remove('hidden');
+              document.getElementById('sign-out-btn').style.display = 'block';
+              
+              // Migrate local data to Firebase first, then load
+              await migrateLocalData();
+              await loadReflections();
+            } else {
+            showMainScreen();
+              
+              // Migrate local data to Firebase first, then load
+              await migrateLocalData();
+              await loadReflections();
+            }
+          } else {
+            // User is signed out
+            console.log('No Firebase user signed in');
+            showAuthScreen();
+          }
+        }, (error) => {
+          console.error('Auth state change error:', error);
+          // Handle sessionStorage errors gracefully
+          if (error.code === 'auth/storage-unsupported' || 
+              error.message.includes('sessionStorage') ||
+              error.message.includes('Unable to process request') ||
+              error.message.includes('missing initial state')) {
+            console.log('SessionStorage issue detected, showing auth screen');
+            showAuthScreen();
+          }
+        });
+      } catch (error) {
+        console.error('Firebase auth initialization error:', error);
+        showAuthScreen();
+      }
+    }
+    
+    // Wait for DOM and scripts to load
+    function startApp() {
+      // Give a little time for scripts to load
+      setTimeout(() => {
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', initializeApp);
+        } else {
+          initializeApp();
+        }
+      }, 100);
+    }
+    
+    startApp();
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(reg => console.log('Service Worker registered', reg))
+          .catch(err => console.log('Service Worker registration failed', err));
+      });
+    }
+
+    // PWA specific behaviors
+    window.addEventListener('load', () => {
+      // Prevent browser navigation gestures
+      if (window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches) {
+        console.log('Running in PWA standalone mode');
+        
+        // Prevent pull-to-refresh
+        document.body.style.overscrollBehavior = 'none';
+        
+        // Prevent zoom on double tap
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function (event) {
+          const now = (new Date()).getTime();
+          if (now - lastTouchEnd <= 300) {
+            event.preventDefault();
+          }
+          lastTouchEnd = now;
+        }, false);
+        
+        // Prevent context menu on long press
+        document.addEventListener('contextmenu', function(e) {
+          e.preventDefault();
+        });
+      }
+    });
+
+    // Prevent browser back/forward navigation
+    window.addEventListener('popstate', function(event) {
+      // Prevent going back to previous page
+      history.pushState(null, null, location.href);
+    });
+
+    // Push initial state to prevent back navigation
+    history.pushState(null, null, location.href);
+  </script>
+</body>
+</html>
