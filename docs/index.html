@@ -1263,7 +1263,7 @@
       
     </div>
     
-    <div id="auth-message" class="prompt" style="display: none; margin-top: 15px;"></div>
+    <div id="auth-message" class="prompt" style="display: none; margin-top: 15px; padding: 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.1); max-width: 90%; word-wrap: break-word;"></div>
   </div>
 
   <!-- Main Screen -->
@@ -2207,17 +2207,41 @@
         // For mobile or in-app browsers, use redirect directly (more reliable)
         if (isMobile || isInAppBrowser) {
           console.log('Mobile/in-app browser detected, using redirect method...');
+          console.log('Current domain:', window.location.hostname);
+          console.log('Auth domain:', firebaseConfig.authDomain);
+          
           message.textContent = 'Redirecting to sign in...';
           message.style.display = 'block';
           message.style.color = '#4CAF50';
           
           try {
             await auth.signInWithRedirect(provider);
-            return; // Redirect will navigate away
+            // If we get here, redirect was initiated successfully
+            // The page will navigate away, so we don't need to do anything
+            return;
           } catch (redirectError) {
-            console.error('Redirect failed:', redirectError);
-            message.textContent = 'Sign-in failed. Please try again or use a different browser.';
+            console.error('❌ Redirect failed:', redirectError);
+            console.error('Error code:', redirectError.code);
+            console.error('Error message:', redirectError.message);
+            
+            // Show detailed error message
+            let errorMsg = 'Sign-in failed: ';
+            if (redirectError.code === 'auth/unauthorized-domain') {
+              errorMsg = `Domain "${window.location.hostname}" not authorized. Please add it to Firebase authorized domains.`;
+            } else if (redirectError.code === 'auth/operation-not-allowed') {
+              errorMsg = 'Google sign-in is not enabled. Please enable it in Firebase console.';
+            } else if (redirectError.message && redirectError.message.includes('redirect_uri_mismatch')) {
+              errorMsg = 'OAuth redirect URI not configured. Please add it to Google Cloud Console.';
+            } else {
+              errorMsg += redirectError.message || redirectError.code || 'Unknown error';
+            }
+            
+            message.textContent = errorMsg;
+            message.style.display = 'block';
             message.style.color = '#ff6b6b';
+            message.style.fontSize = '0.9rem';
+            message.style.padding = '10px';
+            message.style.marginTop = '20px';
             return;
           }
         }
