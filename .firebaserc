@@ -1,5 +1,7 @@
 {
-  "projects": {},
+  "projects": {
+    "default": "spiritual-journey-e3330"
+  },
   "targets": {
     "spiritual-journey-e3330": {
       "hosting": {
