@@ -2162,7 +2162,7 @@
       }, 1000); // 1 second delay to ensure no white page
     }
 
-    // Firebase Google Sign-In - SIMPLE APPROACH
+    // Firebase Google Sign-In - MOBILE-OPTIMIZED APPROACH
     async function signInWithGoogle() {
       const message = document.getElementById('auth-message');
       
@@ -2187,7 +2187,11 @@
           return;
         }
         
-        // Sign in with Google - try popup first, fallback to redirect if needed
+        // Detect mobile devices - use redirect directly for better compatibility
+        const isMobile = /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isInAppBrowser = /(FBAN|FBAV|Instagram|Line|LinkedInApp|Messenger|Pinterest|Snapchat|Twitter|WhatsApp|wv)/i.test(navigator.userAgent);
+        
+        // Sign in with Google
         const provider = new firebase.auth.GoogleAuthProvider();
         
         // Configure provider to help with browser compatibility
@@ -2200,8 +2204,26 @@
         
         let result;
         
+        // For mobile or in-app browsers, use redirect directly (more reliable)
+        if (isMobile || isInAppBrowser) {
+          console.log('Mobile/in-app browser detected, using redirect method...');
+          message.textContent = 'Redirecting to sign in...';
+          message.style.display = 'block';
+          message.style.color = '#4CAF50';
+          
+          try {
+            await auth.signInWithRedirect(provider);
+            return; // Redirect will navigate away
+          } catch (redirectError) {
+            console.error('Redirect failed:', redirectError);
+            message.textContent = 'Sign-in failed. Please try again or use a different browser.';
+            message.style.color = '#ff6b6b';
+            return;
+          }
+        }
+        
+        // For desktop browsers, try popup first
         try {
-          // Try popup first (preferred for better UX)
           result = await auth.signInWithPopup(provider);
         } catch (popupError) {
           console.error('Popup authentication error:', popupError);
@@ -4823,7 +4845,7 @@ Need help? Check the console for any error messages.`;
       cameraInput.click();
     });
 
-    // Handle redirect authentication result
+    // Handle redirect authentication result - improved for mobile
     async function handleRedirectResult() {
       try {
         const result = await auth.getRedirectResult();
@@ -4833,25 +4855,45 @@ Need help? Check the console for any error messages.`;
             id: result.user.uid,
             email: result.user.email,
             name: result.user.displayName,
+            photoURL: result.user.photoURL,
             isFirebase: true
           };
           
-          // Show success message
-          const message = document.getElementById('auth-message');
-          message.textContent = 'Successfully signed in!';
-          message.style.color = '#4ade80';
-          message.style.display = 'block';
+          // Load reflections first
+          await loadReflections();
           
-          // Hide auth screen and show main screen
-          setTimeout(() => {
-            document.getElementById('auth-screen').classList.add('hidden');
-            document.getElementById('main-screen').classList.remove('hidden');
-            message.style.display = 'none';
-            loadReflections();
-          }, 1500);
+          // Hide auth screen and show main screen immediately
+          document.getElementById('auth-screen').classList.add('hidden');
+          document.getElementById('main-screen').classList.remove('hidden');
+          document.getElementById('sign-out-btn').style.display = 'block';
+          
+          // Show options menu buttons
+          document.getElementById('start-journaling-btn').style.display = 'block';
+          document.getElementById('past-reflections-btn').style.display = 'block';
+          document.getElementById('home-btn').style.display = 'block';
+          
+          console.log('User signed in successfully via redirect');
+        } else {
+          // Check if there was an error during redirect
+          const urlParams = new URLSearchParams(window.location.search);
+          if (urlParams.has('error')) {
+            console.error('Redirect error:', urlParams.get('error'));
+            const message = document.getElementById('auth-message');
+            message.textContent = 'Sign-in was cancelled. Please try again.';
+            message.style.color = '#ff6b6b';
+            message.style.display = 'block';
+          }
         }
       } catch (error) {
         console.error('Redirect authentication error:', error);
+        // Don't show error if it's just "no redirect result" (normal case)
+        if (error.code !== 'auth/credential-already-in-use' && 
+            !error.message.includes('no redirect result')) {
+          const message = document.getElementById('auth-message');
+          message.textContent = 'Sign-in error. Please try again.';
+          message.style.color = '#ff6b6b';
+          message.style.display = 'block';
+        }
       }
     }
 
