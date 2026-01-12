@@ -16,7 +16,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
   <title>Heartnotes</title>
-  <!-- Cache buster: v4 -->
+  <!-- Cache buster: v5 -->
   <!-- CI/CD Working! -->
   <script>
     // Apply saved theme ASAP to avoid flashes and ensure toggle reliability
@@ -72,6 +72,75 @@
       }
     })();
   </script>
+  
+  <!-- CRITICAL: Define button functions IMMEDIATELY in head so they're available when onclick fires -->
+  <script>
+    // Define ALL button functions FIRST - before any other scripts
+    // Define ALL button functions - simple, working versions
+    window.toggleOptionsMenu = function() {
+      var menu = document.getElementById('options-menu');
+      if (menu) {
+        var isVisible = menu.style.display === 'block' || window.getComputedStyle(menu).display === 'block';
+        menu.style.display = isVisible ? 'none' : 'block';
+      }
+    };
+    
+    window.toggleTheme = function() {
+      var theme = localStorage.getItem('theme') || 'dark';
+      localStorage.setItem('theme', theme === 'dark' ? 'sky' : 'dark');
+      location.reload();
+    };
+    
+    window.handleSignOut = function() {
+      if (confirm('Sign out?')) {
+        localStorage.removeItem('reflections');
+        location.reload();
+      }
+    };
+    
+    window.signInWithGoogle = function() {
+      // Smart placeholder - checks if real function is loaded
+      var currentFunc = window.signInWithGoogle;
+      // Real function will be async and much longer (>500 chars)
+      if (currentFunc && currentFunc.toString().length > 500 && currentFunc.toString().includes('async')) {
+        return currentFunc();
+      }
+      // Not ready - wait and retry
+      setTimeout(function() {
+        var func = window.signInWithGoogle;
+        if (func && func.toString().length > 500 && func.toString().includes('async')) {
+          func();
+        } else {
+          alert('Please wait 3-5 seconds for the page to fully load, then try again.');
+        }
+      }, 1000);
+    };
+    
+    // Add placeholder functions for menu buttons
+    window.showEntryScreen = function() {
+      alert('Entry screen function loading...');
+    };
+    
+    window.showHistory = function() {
+      alert('History function loading...');
+    };
+    
+    window.goToHome = function() {
+      alert('Home function loading...');
+    };
+    
+    // Test that functions are available
+    console.log('Button functions check:', {
+      toggleOptionsMenu: typeof window.toggleOptionsMenu,
+      toggleTheme: typeof window.toggleTheme,
+      handleSignOut: typeof window.handleSignOut,
+      signInWithGoogle: typeof window.signInWithGoogle,
+      showEntryScreen: typeof window.showEntryScreen,
+      showHistory: typeof window.showHistory,
+      goToHome: typeof window.goToHome
+    });
+  </script>
+  
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -1232,11 +1301,11 @@
   
   <div class="header">
     <div>
-      <button id="theme-toggle" class="button" onclick="toggleTheme()" style="margin-right: 10px; padding: 8px 12px; font-size: 0.8rem;">☀️</button>
+      <button id="theme-toggle" class="button" onclick="window.toggleTheme()" style="margin-right: 10px; padding: 8px 12px; font-size: 0.8rem;">☀️</button>
       <!-- Authentication removed - automatic sync without signup -->
     </div>
     <div>
-      <button id="sign-out-btn" class="button" onclick="handleSignOut()" style="background: var(--accent-secondary); padding: 8px 12px; font-size: 0.8rem; display: none;">Sign Out</button>
+      <button id="sign-out-btn" class="button" onclick="window.handleSignOut()" style="background: var(--accent-secondary); padding: 8px 12px; font-size: 0.8rem; display: none;">Sign Out</button>
     </div>
   </div>
   
@@ -1248,7 +1317,7 @@
     <!-- Firebase Auth Options -->
     <div style="text-align: center; margin-top: 30px;">
       <!-- Google Sign In Button -->
-      <button class="button firebase-google-btn" onclick="signInWithGoogle()" style="background: #4285f4; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.9rem; padding: 10px 20px; margin: 0 auto; border-radius: 20px; font-weight: 500; box-shadow: 0 2px 8px rgba(66, 133, 244, 0.3); transition: all 0.2s ease;">
+      <button class="button firebase-google-btn" id="google-signin-btn" onclick="window.signInWithGoogle()" style="background: #4285f4; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.9rem; padding: 10px 20px; margin: 0 auto; border-radius: 20px; font-weight: 500; box-shadow: 0 2px 8px rgba(66, 133, 244, 0.3); transition: all 0.2s ease;">
         <svg width="18" height="18" viewBox="0 0 24 24">
           <path fill="white" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
           <path fill="white" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -1347,13 +1416,82 @@
       <button class="button" onclick="goBack()">Back</button>
     </div>
   </div>
-  <div class="floating-plus" onclick="toggleOptionsMenu()">+</div>
+  <div class="floating-plus" onclick="window.toggleOptionsMenu()">+</div>
   <div id="options-menu" class="options-menu">
-          <button id="start-journaling-btn" onclick="showEntryScreen()" style="display: none;">Start Journaling</button>
-          <button id="past-reflections-btn" onclick="showHistory()" style="display: none;">Past Reflections</button>
-          <button id="home-btn" onclick="goToHome()" style="display: none;">Home</button>
+          <button id="start-journaling-btn" onclick="window.showEntryScreen()" style="display: none;">Start Journaling</button>
+          <button id="past-reflections-btn" onclick="window.showHistory()" style="display: none;">Past Reflections</button>
+          <button id="home-btn" onclick="window.goToHome()" style="display: none;">Home</button>
   </div>
   <script>
+    // CRITICAL: Define ALL button functions FIRST before anything else
+    // This ensures they're available immediately when onclick handlers fire
+    // Use immediate execution - no IIFE needed, just assign directly
+    window.toggleOptionsMenu = function() {
+      try {
+        var menu = document.getElementById('options-menu');
+        if (menu) {
+          var currentDisplay = window.getComputedStyle(menu).display;
+          menu.style.display = (currentDisplay === 'none' || currentDisplay === '') ? 'block' : 'none';
+        } else {
+          alert('Menu not found');
+        }
+      } catch(e) {
+        alert('Error: ' + e.message);
+        console.error('toggleOptionsMenu error:', e);
+      }
+    };
+    
+    window.toggleTheme = function() {
+      try {
+        var currentTheme = localStorage.getItem('theme') || 'dark';
+        var newTheme = currentTheme === 'dark' ? 'sky' : 'dark';
+        localStorage.setItem('theme', newTheme);
+        location.reload();
+      } catch(e) {
+        alert('Error: ' + e.message);
+        console.error('toggleTheme error:', e);
+      }
+    };
+    
+    window.handleSignOut = function() {
+      try {
+        if (confirm('Sign out?')) {
+          localStorage.removeItem('reflections');
+          location.reload();
+        }
+      } catch(e) {
+        alert('Error: ' + e.message);
+        console.error('handleSignOut error:', e);
+      }
+    };
+    
+    window.signInWithGoogle = function() {
+      try {
+        alert('Sign in is loading. Please wait...');
+      } catch(e) {
+        alert('Error: ' + e.message);
+        console.error('signInWithGoogle error:', e);
+      }
+    };
+    
+    // Verify functions are assigned (silent check)
+    if (typeof window.toggleOptionsMenu !== 'function' || 
+        typeof window.toggleTheme !== 'function' || 
+        typeof window.handleSignOut !== 'function' || 
+        typeof window.signInWithGoogle !== 'function') {
+      console.error('❌ CRITICAL: Some functions failed to load!');
+    } else {
+      console.log('✅ All button functions loaded successfully');
+    }
+    
+    // Test that functions work immediately
+    if (typeof window.toggleOptionsMenu !== 'function') {
+      console.error('❌ CRITICAL: toggleOptionsMenu not assigned!');
+    }
+    if (typeof window.toggleTheme !== 'function') {
+      console.error('❌ CRITICAL: toggleTheme not assigned!');
+    }
+    
     // Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyCBKWKwZq8XqECABmuPn5vZ3D8O3hz8Ts0",
@@ -2163,41 +2301,71 @@
     }
 
     // Firebase Google Sign-In - MOBILE-OPTIMIZED APPROACH
+    // Make sure function is in global scope - define it multiple ways for compatibility
     async function signInWithGoogle() {
-      const message = document.getElementById('auth-message');
-      
-      // Always show message area and clear any previous messages
-      if (!message) {
-        console.error('Auth message element not found!');
-        alert('Error: Cannot display messages. Please refresh the page.');
-        return;
-      }
-      
-      // Make sure message is visible
-      message.style.display = 'block';
-      message.style.visibility = 'visible';
-      message.style.opacity = '1';
-      
+      // Wrap everything in try-catch to ensure errors are always shown
       try {
+        console.log('🔵 signInWithGoogle called');
+        
+        const message = document.getElementById('auth-message');
+        
+        // Always show message area and clear any previous messages
+        if (!message) {
+          console.error('❌ Auth message element not found!');
+          alert('❌ ERROR\n\nCannot find message element. Please refresh the page.');
+          return;
+        }
+        
+        // Make sure message is visible and show loading state
+        message.style.display = 'block';
+        message.style.visibility = 'visible';
+        message.style.opacity = '1';
+        message.style.zIndex = '9999';
+        message.style.position = 'relative';
+        message.textContent = 'Starting sign-in...';
+        message.style.color = '#34c759';
+        message.style.background = 'rgba(52, 199, 89, 0.15)';
+        message.style.border = '2px solid rgba(52, 199, 89, 0.5)';
+        message.style.padding = '15px';
+        message.style.fontSize = '1rem';
+        message.style.fontWeight = '500';
+        
+        // Force scroll to message
+        setTimeout(() => {
+          message.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
+        
+        try {
         // Check if Firebase is initialized
         if (!firebase || !auth) {
+          console.error('❌ Firebase not initialized:', { firebase: !!firebase, auth: !!auth });
           message.textContent = 'Firebase is loading... Please wait a moment and try again.';
           message.style.display = 'block';
-          message.style.color = '#ff6b6b';
-          console.error('Firebase not initialized:', { firebase: !!firebase, auth: !!auth });
+          message.style.color = '#ff3b30';
+          message.style.background = 'rgba(255, 59, 48, 0.15)';
+          message.style.border = '2px solid rgba(255, 59, 48, 0.5)';
           
           // Try to reinitialize Firebase
           setTimeout(async () => {
             if (initializeFirebase()) {
               message.textContent = 'Firebase loaded! You can now sign in.';
-              message.style.color = '#4CAF50';
+              message.style.color = '#34c759';
+              message.style.background = 'rgba(52, 199, 89, 0.15)';
+              message.style.border = '2px solid rgba(52, 199, 89, 0.5)';
               setTimeout(() => {
                 message.style.display = 'none';
               }, 2000);
+            } else {
+              message.textContent = 'Firebase failed to load. Please refresh the page.';
+              message.style.color = '#ff3b30';
+              message.style.background = 'rgba(255, 59, 48, 0.15)';
+              message.style.border = '2px solid rgba(255, 59, 48, 0.5)';
             }
           }, 2000);
           return;
         }
+        
+        console.log('✅ Firebase initialized');
         
         // Detect mobile devices - use redirect directly for better compatibility
         const isMobile = /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -2222,57 +2390,84 @@
           console.log('Current domain:', window.location.hostname);
           console.log('Auth domain:', firebaseConfig.authDomain);
           
-          message.textContent = 'Redirecting to sign in...';
+          message.textContent = 'Redirecting to Google sign-in...';
           message.style.display = 'block';
-          message.style.color = '#4CAF50';
+          message.style.visibility = 'visible';
+          message.style.opacity = '1';
+          message.style.color = '#34c759';
+          message.style.background = 'rgba(52, 199, 89, 0.15)';
+          message.style.border = '2px solid rgba(52, 199, 89, 0.5)';
+          message.style.fontSize = '1rem';
+          message.style.padding = '15px';
+          message.style.fontWeight = '500';
+          
+          // Force scroll to message
+          setTimeout(() => {
+            message.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 100);
           
           try {
+            console.log('🔄 Calling signInWithRedirect...');
             // Store redirect attempt timestamp to detect if it actually happened
             localStorage.setItem('redirectAttempt', Date.now().toString());
+            
             await auth.signInWithRedirect(provider);
+            
+            console.log('✅ Redirect initiated successfully');
             // If we get here, redirect was initiated successfully
             // The page will navigate away, so we don't need to do anything
             return;
           } catch (redirectError) {
             // Clear the redirect attempt marker
             localStorage.removeItem('redirectAttempt');
+            
             console.error('❌ Redirect failed:', redirectError);
             console.error('Error code:', redirectError.code);
             console.error('Error message:', redirectError.message);
+            console.error('Full error object:', JSON.stringify(redirectError, null, 2));
             
             // Show detailed error message
-            let errorMsg = 'Sign-in failed: ';
+            let errorMsg = '';
             if (redirectError.code === 'auth/unauthorized-domain') {
-              errorMsg = `Domain "${window.location.hostname}" not authorized. Please add it to Firebase authorized domains.`;
+              errorMsg = `Domain "${window.location.hostname}" is not authorized.\n\nAdd it to Firebase authorized domains:\nhttps://console.firebase.google.com/project/spiritual-journey-e3330/authentication/settings`;
             } else if (redirectError.code === 'auth/operation-not-allowed') {
-              errorMsg = 'Google sign-in is not enabled. Please enable it in Firebase console.';
+              errorMsg = 'Google sign-in is not enabled.\n\nEnable it in Firebase console:\nhttps://console.firebase.google.com/project/spiritual-journey-e3330/authentication/providers';
             } else if (redirectError.message && redirectError.message.includes('redirect_uri_mismatch')) {
-              errorMsg = 'OAuth redirect URI not configured. Please add it to Google Cloud Console.';
+              errorMsg = 'OAuth redirect URI not configured.\n\nAdd "https://' + window.location.hostname + '/__/auth/handler" to Google Cloud Console.';
             } else {
-              errorMsg += redirectError.message || redirectError.code || 'Unknown error';
+              errorMsg = 'Sign-in failed: ' + (redirectError.message || redirectError.code || 'Unknown error');
             }
             
+            // Update message with error - make it VERY visible
             message.textContent = errorMsg;
             message.style.display = 'block';
             message.style.visibility = 'visible';
             message.style.opacity = '1';
             message.style.color = '#ff3b30';
             message.style.fontSize = '0.95rem';
-            message.style.padding = '15px';
+            message.style.padding = '20px';
             message.style.marginTop = '20px';
-            message.style.background = 'rgba(255, 59, 48, 0.15)';
-            message.style.border = '2px solid rgba(255, 59, 48, 0.5)';
-            message.style.fontWeight = '500';
+            message.style.background = 'rgba(255, 59, 48, 0.25)';
+            message.style.border = '3px solid #ff3b30';
+            message.style.borderRadius = '12px';
+            message.style.fontWeight = '600';
+            message.style.lineHeight = '1.6';
+            message.style.boxShadow = '0 4px 12px rgba(255, 59, 48, 0.3)';
+            message.style.zIndex = '9999';
+            message.style.position = 'relative';
+            
+            // Scroll message into view
+            setTimeout(() => {
+              message.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
             
             // Also log to console for debugging
             console.error('❌ Sign-in error shown to user:', errorMsg);
             
-            // Fallback: Also show alert on mobile if message might not be visible
-            if (isMobile) {
-              setTimeout(() => {
-                alert('Sign-In Error:\n\n' + errorMsg + '\n\nPlease check the configuration.');
-              }, 500);
-            }
+            // ALWAYS show alert on mobile as primary notification
+            setTimeout(() => {
+              alert('❌ SIGN-IN ERROR\n\n' + errorMsg.replace(/\n/g, '\n'));
+            }, 400);
             return;
           }
         }
@@ -2367,7 +2562,10 @@
         document.getElementById('main-screen').classList.remove('hidden');
         
       } catch (error) {
-        console.error('Google sign-in error:', error);
+        console.error('❌ Google sign-in error (outer catch):', error);
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        console.error('Full error:', JSON.stringify(error, null, 2));
         
         // Provide more specific error messages
         let errorMessage = 'Sign-in error: ';
@@ -2376,29 +2574,82 @@
         } else if (error.code === 'auth/popup-blocked') {
           errorMessage += 'Popup was blocked. Please allow popups and try again.';
         } else if (error.code === 'auth/unauthorized-domain') {
-          errorMessage += 'Domain not authorized. Please add localhost to Firebase authorized domains.';
+          errorMessage = `Domain "${window.location.hostname}" not authorized.\n\nPlease add it to Firebase authorized domains.`;
         } else if (error.code === 'auth/operation-not-allowed') {
-          errorMessage += 'Google sign-in not enabled. Please enable it in Firebase console.';
-        } else if (error.message.includes('sessionStorage') || 
+          errorMessage = 'Google sign-in not enabled. Please enable it in Firebase console.';
+        } else if (error.message && (error.message.includes('sessionStorage') || 
                    error.message.includes('Unable to process request') ||
-                   error.message.includes('missing initial state')) {
-          errorMessage += 'Browser storage issue. Please try refreshing the page or use a different browser.';
+                   error.message.includes('missing initial state'))) {
+          errorMessage = 'Browser storage issue. Please try refreshing the page or use a different browser.';
         } else {
-          errorMessage += error.message;
+          errorMessage += (error.message || error.code || 'Unknown error');
         }
         
-        message.textContent = errorMessage;
-        message.style.display = 'block';
-        message.style.visibility = 'visible';
-        message.style.opacity = '1';
-        message.style.color = '#ff3b30';
-        message.style.background = 'rgba(255, 59, 48, 0.15)';
-        message.style.border = '2px solid rgba(255, 59, 48, 0.5)';
-        message.style.fontWeight = '500';
+        // Make sure message element exists and is visible
+        if (message) {
+          message.textContent = errorMessage;
+          message.style.display = 'block';
+          message.style.visibility = 'visible';
+          message.style.opacity = '1';
+          message.style.color = '#ff3b30';
+          message.style.background = 'rgba(255, 59, 48, 0.2)';
+          message.style.border = '2px solid #ff3b30';
+          message.style.fontWeight = '600';
+          message.style.padding = '15px';
+          message.style.lineHeight = '1.5';
+          
+          // Scroll message into view
+          message.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        
+        // Always show alert as fallback
+        const isMobile = /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobile) {
+          setTimeout(() => {
+            alert('❌ Sign-In Error\n\n' + errorMessage.replace(/\n/g, ' '));
+          }, 300);
+        }
         
         // Also log to console
-        console.error('❌ Sign-in error:', errorMessage);
+        console.error('❌ Sign-in error shown to user:', errorMessage);
+      } catch (outerError) {
+        // Catch any errors in the error handling itself
+        console.error('❌ Error in error handler:', outerError);
+        const message = document.getElementById('auth-message');
+        if (message) {
+          message.textContent = 'Sign-in failed. Please check console for details.';
+          message.style.display = 'block';
+          message.style.visibility = 'visible';
+          message.style.opacity = '1';
+          message.style.color = '#ff3b30';
+          message.style.background = 'rgba(255, 59, 48, 0.25)';
+          message.style.border = '3px solid #ff3b30';
+          message.style.padding = '20px';
+          message.style.fontSize = '1rem';
+          message.style.fontWeight = '600';
+        }
+        alert('❌ SIGN-IN ERROR\n\nAn error occurred. Please check the page for details or refresh and try again.');
       }
+    }
+    
+    // CRITICAL: Explicitly assign to window for global access - this replaces the placeholder
+    // Force assignment immediately after function definition - MUST replace placeholder
+    if (typeof signInWithGoogle === 'function') {
+      window.signInWithGoogle = signInWithGoogle;
+      console.log('✅ Real signInWithGoogle function assigned to window (replacing placeholder)');
+      console.log('Function type:', typeof window.signInWithGoogle);
+      console.log('Function is async:', window.signInWithGoogle.constructor.name === 'AsyncFunction' || window.signInWithGoogle.toString().includes('async'));
+      
+      // Double-check it was assigned
+      if (window.signInWithGoogle === signInWithGoogle) {
+        console.log('✅ Confirmed: window.signInWithGoogle is the real function');
+      } else {
+        console.error('❌ ERROR: window.signInWithGoogle was not replaced!');
+        // Force it
+        window.signInWithGoogle = signInWithGoogle;
+      }
+    } else {
+      console.error('❌ ERROR: signInWithGoogle is not a function!');
     }
 
     function debugFirebase() {
@@ -2568,6 +2819,7 @@ Need help? Check the console for any error messages.`;
         document.getElementById('auth-screen').classList.remove('hidden');
       }
     }
+    window.handleSignOut = handleSignOut;
 
     // Manual migration function to move all current journals to Firebase
     async function manualMigrateToCloud() {
@@ -4287,6 +4539,7 @@ Need help? Check the console for any error messages.`;
         localStorage.setItem('theme', 'dark');
       }
     }
+    window.toggleTheme = toggleTheme;
 
 
     function loadTheme() {
@@ -4817,6 +5070,9 @@ Need help? Check the console for any error messages.`;
       
       menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
     }
+    // Replace placeholder with real function
+    window.toggleOptionsMenu = toggleOptionsMenu;
+    console.log('✅ Real toggleOptionsMenu assigned to window:', typeof window.toggleOptionsMenu);
 
 
     function copyShareLink() {
@@ -5106,6 +5362,121 @@ Need help? Check the console for any error messages.`;
     }
     
     startApp();
+    
+    // Set up button click handler - use immediate execution if DOM is ready, otherwise wait
+    function setupGoogleSignInButton() {
+      const googleBtn = document.getElementById('google-signin-btn');
+      if (googleBtn) {
+        googleBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          try {
+            if (typeof window.signInWithGoogle === 'function') {
+              window.signInWithGoogle();
+            } else if (typeof signInWithGoogle === 'function') {
+              signInWithGoogle();
+            } else {
+              alert('Sign-in function not loaded. Please refresh the page.');
+            }
+          } catch (error) {
+            console.error('Button click error:', error);
+            alert('Error: ' + (error.message || 'Unknown error'));
+          }
+        });
+        console.log('✅ Google sign-in button event listener attached');
+      } else {
+        console.warn('⚠️ Google sign-in button not found');
+      }
+    }
+    
+    // Set up button when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', setupGoogleSignInButton);
+    } else {
+      // DOM already ready
+      setTimeout(setupGoogleSignInButton, 100);
+    }
+    
+    // Functions are now assigned to window immediately after definition
+    // Verify all functions are accessible and ensure they're global
+    try {
+      // Double-check all functions are on window
+      if (typeof toggleTheme === 'function' && !window.toggleTheme) {
+        window.toggleTheme = toggleTheme;
+      }
+      if (typeof toggleOptionsMenu === 'function' && !window.toggleOptionsMenu) {
+        window.toggleOptionsMenu = toggleOptionsMenu;
+      }
+      if (typeof handleSignOut === 'function' && !window.handleSignOut) {
+        window.handleSignOut = handleSignOut;
+      }
+      // ALWAYS replace placeholder with real function if it exists
+      if (typeof signInWithGoogle === 'function') {
+        window.signInWithGoogle = signInWithGoogle;
+        console.log('✅ Real signInWithGoogle function assigned');
+      }
+      
+      console.log('✅ Function availability check:');
+      console.log('  toggleTheme:', typeof window.toggleTheme);
+      console.log('  toggleOptionsMenu:', typeof window.toggleOptionsMenu);
+      console.log('  handleSignOut:', typeof window.handleSignOut);
+      console.log('  signInWithGoogle:', typeof window.signInWithGoogle);
+      
+      // Test that functions can be called
+      if (typeof window.toggleTheme !== 'function') {
+        console.error('❌ toggleTheme is not a function!');
+        // Try to assign it again
+        if (typeof toggleTheme === 'function') {
+          window.toggleTheme = toggleTheme;
+          console.log('✅ toggleTheme reassigned');
+        }
+      }
+      if (typeof window.toggleOptionsMenu !== 'function') {
+        console.error('❌ toggleOptionsMenu is not a function!');
+        if (typeof toggleOptionsMenu === 'function') {
+          window.toggleOptionsMenu = toggleOptionsMenu;
+          console.log('✅ toggleOptionsMenu reassigned');
+        }
+      }
+      if (typeof window.handleSignOut !== 'function') {
+        console.error('❌ handleSignOut is not a function!');
+        if (typeof handleSignOut === 'function') {
+          window.handleSignOut = handleSignOut;
+          console.log('✅ handleSignOut reassigned');
+        }
+      }
+      if (typeof window.signInWithGoogle !== 'function') {
+        console.error('❌ signInWithGoogle is not a function!');
+        if (typeof signInWithGoogle === 'function') {
+          window.signInWithGoogle = signInWithGoogle;
+          console.log('✅ signInWithGoogle reassigned');
+        }
+      }
+      
+      // Final verification - all functions MUST be on window
+      console.log('🔍 FINAL Function check:');
+      console.log('  window.toggleTheme:', typeof window.toggleTheme);
+      console.log('  window.toggleOptionsMenu:', typeof window.toggleOptionsMenu);
+      console.log('  window.handleSignOut:', typeof window.handleSignOut);
+      console.log('  window.signInWithGoogle:', typeof window.signInWithGoogle);
+      
+      // Make absolutely sure - assign directly without checking
+      try {
+        window.toggleTheme = toggleTheme;
+        window.toggleOptionsMenu = toggleOptionsMenu;
+        window.handleSignOut = handleSignOut;
+        // FORCE replace signInWithGoogle - this is the final assignment
+        if (typeof signInWithGoogle === 'function') {
+          window.signInWithGoogle = signInWithGoogle;
+          console.log('✅ signInWithGoogle FORCE assigned (final assignment)');
+        }
+        console.log('✅ All functions forcefully assigned to window');
+      } catch (e) {
+        console.error('❌ CRITICAL: Cannot assign functions to window:', e);
+      }
+    } catch (e) {
+      console.error('❌ Error in function verification:', e);
+    }
   </script>
   <script>
     if ('serviceWorker' in navigator) {
