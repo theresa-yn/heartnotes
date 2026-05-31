@@ -16,7 +16,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
   <title>Heartnotes</title>
-  <!-- Cache buster: v6 -->
+  <!-- Cache buster: v5 -->
   <!-- CI/CD Working! -->
   <script>
     // Apply saved theme ASAP to avoid flashes and ensure toggle reliability
@@ -145,7 +145,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
   <style>
     /* CSS Variables for theming */
     :root {
@@ -1508,7 +1507,6 @@
     let firebase;
     let auth;
     let db;
-    let storage;
     
     function initializeFirebase() {
       try {
@@ -1529,7 +1527,6 @@
         // Initialize Firebase Auth and Firestore
         auth = firebase.auth();
         db = firebase.firestore();
-        storage = firebase.storage();
         
         console.log('Firebase initialized successfully');
         return true;
@@ -3235,36 +3232,11 @@ Need help? Check the console for any error messages.`;
         imageCount: Array.isArray(currentImages) ? currentImages.length : 0,
         date: date
       });
-
-      let imagesForSave = Array.isArray(currentImages) ? currentImages.slice() : [];
-      try {
-        const saveButton = document.getElementById('save');
-        if (saveButton && imagesForSave.some(isDataUrlImage)) {
-          saveButton.disabled = true;
-          saveButton.textContent = 'Uploading photos...';
-        }
-        imagesForSave = await prepareImagesForSave(imagesForSave);
-        currentImages = imagesForSave.slice();
-      } catch (error) {
-        console.error('Failed to upload full-quality photos:', error);
-        const saveButton = document.getElementById('save');
-        if (saveButton) {
-          saveButton.disabled = false;
-          saveButton.textContent = 'Save Reflection';
-        }
-        showAlert(`📸 Photo Upload Failed\n\nYour full-quality photos could not be uploaded.\n\nError: ${error.message}\n\nPlease try again.`);
-        return;
-      }
       
       // Check document size before saving
-      const estimatedSize = estimateDocumentSize(title, reflection, imagesForSave);
+      const estimatedSize = estimateDocumentSize(title, reflection, currentImages);
       if (estimatedSize > 1048576) { // 1MB limit
         showAlert(`📏 Document Too Large\n\nYour journal entry is ${Math.round(estimatedSize / 1024)}KB, which exceeds Firebase's 1MB limit.\n\nPlease:\n• Remove some photos\n• Shorten your text\n• Try again`);
-        const saveButton = document.getElementById('save');
-        if (saveButton) {
-          saveButton.disabled = false;
-          saveButton.textContent = 'Save Reflection';
-        }
         return;
       }
       
@@ -3280,8 +3252,8 @@ Need help? Check the console for any error messages.`;
             title,
             reflection,
             date, // Keep the original date from the form
-            images: imagesForSave.slice(),
-            image: imagesForSave[0] || '',
+            images: Array.isArray(currentImages) ? currentImages.slice() : [],
+            image: (Array.isArray(currentImages) && currentImages[0]) ? currentImages[0] : '',
             // Don't update createdAt - preserve original creation time
           };
           
@@ -3300,8 +3272,8 @@ Need help? Check the console for any error messages.`;
           title,
           reflection,
           date,
-            images: imagesForSave.slice(),
-            image: imagesForSave[0] || '',
+            images: Array.isArray(currentImages) ? currentImages.slice() : [],
+            image: (Array.isArray(currentImages) && currentImages[0]) ? currentImages[0] : '',
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
         
@@ -4126,7 +4098,7 @@ Need help? Check the console for any error messages.`;
         // Create images HTML
         const imagesHtml = allImages.length > 0 
           ? `<div style="display: flex; flex-wrap: wrap; gap: 10px; margin: 15px 0;">
-               ${allImages.map(img => `<img src="${img}" style="max-width: 120px; max-height: 120px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); background: transparent !important; object-fit: cover; cursor: pointer; transition: transform 0.2s ease;" onclick="openImageModal(this.src, 'Journal photo')" title="View full photo">`).join('')}
+               ${allImages.map(img => `<img src="${img}" style="max-width: 120px; max-height: 120px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); background: transparent !important; object-fit: cover; cursor: pointer; transition: transform 0.2s ease;" onclick="this.style.transform = this.style.transform === 'scale(1.1)' ? 'scale(1)' : 'scale(1.1)'">`).join('')}
              </div>`
           : '';
         
@@ -4806,10 +4778,10 @@ Need help? Check the console for any error messages.`;
       // Initialize currentImages array if needed
       if (!Array.isArray(currentImages)) currentImages = [];
       const currentPhotoCount = currentImages.length;
-      const maxPhotos = 5; // Keep each journal entry quick to load and review
+      const maxPhotos = 5; // Limit to 5 photos to stay under 1MB
       
       if (currentPhotoCount >= maxPhotos) {
-        showAlert(`📸 Photo Limit Reached\n\nYou can add up to ${maxPhotos} photos per entry.\n\nCurrent photos: ${currentPhotoCount}/${maxPhotos}\n\nPlease remove a photo first if you want to add a new one.`);
+        showAlert(`📸 Photo Limit Reached\n\nYou can only add up to ${maxPhotos} photos per entry to stay within Firebase's size limits.\n\nCurrent photos: ${currentPhotoCount}/${maxPhotos}\n\nPlease remove a photo first if you want to add a new one.`);
         // Clear the file input
         event.target.value = '';
         return;
@@ -4870,14 +4842,14 @@ Need help? Check the console for any error messages.`;
         const reader = new FileReader();
         reader.onload = (e) => {
           try {
-            const originalDataUrl = e.target.result;
-            currentImages.push(originalDataUrl);
+            // Compress each image before storing
+            compressImage(e.target.result, (compressedDataUrl) => {
+              currentImages.push(compressedDataUrl);
               
               console.log('📷 Image processed and added:', {
                 currentImagesCount: currentImages.length,
                 processed: processed + 1,
-                totalFiles: files.length,
-                preservedOriginalSize: originalDataUrl.length
+                totalFiles: files.length
               });
               
               // Render thumbnail
@@ -4885,11 +4857,11 @@ Need help? Check the console for any error messages.`;
                 const wrap = document.createElement('div');
                 wrap.style.position = 'relative';
                 const img = document.createElement('img');
-                img.src = originalDataUrl;
+                img.src = compressedDataUrl;
                 img.className = 'preview';
                 img.style.width = '100%';
                 img.style.height = 'auto';
-                img.onclick = () => openImageModal(originalDataUrl, 'Preview image');
+                img.onclick = () => openImageModal(compressedDataUrl, 'Preview image');
                 const rm = document.createElement('button');
                 rm.className = 'button';
                 rm.textContent = '×';
@@ -4925,13 +4897,14 @@ Need help? Check the console for any error messages.`;
                   console.log('🔧 Force-enabled save button due to title + images');
                 }
               }
+            });
           } catch (error) {
             console.error('Error processing image:', error);
             processed++;
             if (processed === files.length) {
               loading.style.display = 'none';
             }
-            alert('Error processing the file. Please try a different image.');
+            alert('Error processing the file. Please try a different file.\n\nThe app supports any image format and will automatically compress large files.');
           }
         };
         
@@ -4948,81 +4921,75 @@ Need help? Check the console for any error messages.`;
       });
     }
 
-    function isDataUrlImage(src) {
-      return typeof src === 'string' && src.startsWith('data:image/');
-    }
-
-    function dataUrlToBlob(dataUrl) {
-      const parts = dataUrl.split(',');
-      const header = parts[0] || '';
-      const byteString = atob(parts[1] || '');
-      const mimeMatch = header.match(/data:([^;]+);base64/);
-      const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-      const bytes = new Uint8Array(byteString.length);
-
-      for (let i = 0; i < byteString.length; i++) {
-        bytes[i] = byteString.charCodeAt(i);
-      }
-
-      return {
-        blob: new Blob([bytes], { type: mimeType }),
-        mimeType
-      };
-    }
-
-    function getImageExtension(mimeType) {
-      const extensionMap = {
-        'image/jpeg': 'jpg',
-        'image/jpg': 'jpg',
-        'image/png': 'png',
-        'image/gif': 'gif',
-        'image/webp': 'webp',
-        'image/heic': 'heic',
-        'image/heif': 'heif'
-      };
-
-      return extensionMap[mimeType] || 'jpg';
-    }
-
-    async function uploadJournalImage(dataUrl, index) {
-      if (!storage) {
-        throw new Error('Photo storage is not ready yet. Please refresh and try again.');
-      }
-
-      const userId = getCurrentUserId();
-      if (!userId) {
-        throw new Error('Please sign in before uploading photos.');
-      }
-
-      const { blob, mimeType } = dataUrlToBlob(dataUrl);
-      const extension = getImageExtension(mimeType);
-      const fileName = `${Date.now()}-${index}-${Math.random().toString(36).slice(2)}.${extension}`;
-      const imageRef = storage.ref().child(`journal-images/${userId}/${fileName}`);
-      const snapshot = await imageRef.put(blob, {
-        contentType: mimeType,
-        customMetadata: {
-          uploadedBy: userId,
-          source: 'heartnotes-journal'
+    function compressImage(dataUrl, callback) {
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // More aggressive compression for Firebase (max 800px, target 200KB per image)
+        let { width, height } = img;
+        const maxSize = 800; // Reduced from 1200
+        const targetSize = 200000; // 200KB target per image
+        
+        if (width > height) {
+          if (width > maxSize) {
+            height = (height * maxSize) / width;
+            width = maxSize;
+          }
+      } else {
+          if (height > maxSize) {
+            width = (width * maxSize) / height;
+            height = maxSize;
+          }
         }
-      });
-
-      return snapshot.ref.getDownloadURL();
-    }
-
-    async function prepareImagesForSave(images) {
-      if (!Array.isArray(images) || images.length === 0) return [];
-
-      const preparedImages = [];
-      for (let i = 0; i < images.length; i++) {
-        const image = images[i];
-        if (isDataUrlImage(image)) {
-          preparedImages.push(await uploadJournalImage(image, i));
-        } else if (image) {
-          preparedImages.push(image);
+        
+        // Set canvas dimensions
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw and compress
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Start with lower quality for Firebase
+        let quality = 0.6; // Reduced from 0.9
+        let compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        
+        // If still too large, reduce quality further
+        while (compressedDataUrl.length > targetSize && quality > 0.1) {
+          quality -= 0.1;
+          compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
         }
-      }
-
-      return preparedImages;
+        
+        // If still too large, reduce dimensions progressively
+        if (compressedDataUrl.length > targetSize) {
+          let scaleFactor = 0.7; // Start smaller
+          while (compressedDataUrl.length > targetSize && scaleFactor > 0.2) {
+            canvas.width = width * scaleFactor;
+            canvas.height = height * scaleFactor;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            compressedDataUrl = canvas.toDataURL('image/jpeg', 0.5); // Lower quality
+            scaleFactor -= 0.1;
+          }
+        }
+        
+        console.log('🔄 Image compressed for Firebase:', {
+          original: dataUrl.length,
+          compressed: compressedDataUrl.length,
+          reduction: ((1 - compressedDataUrl.length / dataUrl.length) * 100).toFixed(1) + '%',
+          target: targetSize
+        });
+        
+        callback(compressedDataUrl);
+      };
+      
+      img.onerror = function() {
+        console.error('Error loading image for compression');
+        callback(dataUrl); // Fallback to original
+      };
+      
+      img.src = dataUrl;
     }
 
     function removeAllImages() {
