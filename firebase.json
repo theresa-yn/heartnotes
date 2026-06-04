@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "heartnotes-xyz",
+    "site": "heartnotes",
     "public": "docs",
     "ignore": [
       "firebase.json",
@@ -10,14 +10,11 @@
     "rewrites": [
       {
         "source": "**",
-        "destination": "/index.v10.html"
+        "destination": "/index.html"
       }
     ]
   },
   "firestore": {
     "rules": "firestore.rules"
-  },
-  "storage": {
-    "rules": "storage.rules"
   }
 }

@@ -16,7 +16,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
   <title>Heartnotes</title>
-  <!-- Cache buster: v9 -->
+  <!-- Cache buster: v5 -->
   <!-- CI/CD Working! -->
   <script>
     // Apply saved theme ASAP to avoid flashes and ensure toggle reliability
@@ -1341,9 +1341,9 @@
     <div id="welcome-message" class="prompt" style="display: none; margin-bottom: 20px;"></div>
     <div id="quota-status" class="prompt" style="display: none; margin-bottom: 20px; font-size: 0.9rem; color: var(--text-muted);"></div>
     <div id="quote" class="prompt" style="word-wrap: break-word; overflow-wrap: break-word; hyphens: none; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; font-feature-settings: 'kern' 1; letter-spacing: 0.02em; line-height: 1.4;">Loading inspiration...</div>
-    <button class="button" onclick="newQuote()" style="margin-top: 18px;">messages</button>
+    <button class="button" onclick="newQuote()">Inspire Me</button>
           <h2 class="app-title">Writing Experiences</h2>
-      <p style="font-size: 1.1rem; color: var(--text-muted); margin-top: 8px;">A quiet place to listen inward.</p>
+      <p>Tap the plus button to start your journey</p>
   </div>
   <!-- Authentication screens removed - no signup/login required -->
   <!-- Entry Screen -->
@@ -2196,8 +2196,8 @@
       document.getElementById('entry-screen').classList.add('hidden');
       document.getElementById('history-screen').classList.add('hidden');
       
-      // Only show sign out when there is an authenticated user
-      document.getElementById('sign-out-btn').style.display = currentUser ? 'block' : 'none';
+      // Show sign out button in header
+      document.getElementById('sign-out-btn').style.display = 'block';
       
       // Show options menu buttons when signed in
       document.getElementById('start-journaling-btn').style.display = 'block';
@@ -5258,8 +5258,8 @@ Need help? Check the console for any error messages.`;
       }
       
       if (!firebaseInitialized) {
-        console.log('Firebase not configured after retries, showing main screen');
-        showMainScreen();
+        console.log('Firebase not configured after retries, showing auth screen');
+        showAuthScreen();
       }
       
       setInterval(updateDateTime, 1000);
@@ -5330,7 +5330,7 @@ Need help? Check the console for any error messages.`;
           } else {
             // User is signed out
             console.log('No Firebase user signed in');
-            showMainScreen();
+            showAuthScreen();
           }
         }, (error) => {
           console.error('Auth state change error:', error);
@@ -5339,13 +5339,13 @@ Need help? Check the console for any error messages.`;
               error.message.includes('sessionStorage') ||
               error.message.includes('Unable to process request') ||
               error.message.includes('missing initial state')) {
-            console.log('SessionStorage issue detected, showing main screen');
-            showMainScreen();
+            console.log('SessionStorage issue detected, showing auth screen');
+            showAuthScreen();
           }
         });
       } catch (error) {
         console.error('Firebase auth initialization error:', error);
-        showMainScreen();
+        showAuthScreen();
       }
     }
     
