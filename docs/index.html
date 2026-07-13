@@ -1312,7 +1312,7 @@
 
   <!-- Authentication Screen -->
   <div id="auth-screen" class="content screen-transition">
-    <h2 class="app-title">Writing Experiences</h2>
+    <h2 class="app-title">Heartnotes</h2>
     
     <!-- Firebase Auth Options -->
     <div style="text-align: center; margin-top: 30px;">
@@ -1342,7 +1342,7 @@
     <div id="quota-status" class="prompt" style="display: none; margin-bottom: 20px; font-size: 0.9rem; color: var(--text-muted);"></div>
     <div id="quote" class="prompt" style="word-wrap: break-word; overflow-wrap: break-word; hyphens: none; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; font-feature-settings: 'kern' 1; letter-spacing: 0.02em; line-height: 1.4;">Loading inspiration...</div>
     <button class="button" onclick="newQuote()">Inspire Me</button>
-          <h2 class="app-title">Writing Experiences</h2>
+          <h2 class="app-title">Heartnotes</h2>
       <p>Tap the plus button to start your journey</p>
   </div>
   <!-- Authentication screens removed - no signup/login required -->
@@ -2612,6 +2612,7 @@
         
         // Also log to console
         console.error('❌ Sign-in error shown to user:', errorMessage);
+        }
       } catch (outerError) {
         // Catch any errors in the error handling itself
         console.error('❌ Error in error handler:', outerError);
